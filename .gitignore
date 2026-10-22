@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[oc]
+*.egg-info/
+build/
+dist/
+wheels/
+
+# Virtual environment — uv.lock and .python-version ARE committed, the venv is not
+.venv/
+
+# Tooling caches (.cache/ is where CI puts PREK_HOME)
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+.cache/
+.coverage
+coverage.xml
+htmlcov/
+junit.xml
+
+# Secrets and local overrides — .env.example IS committed
+.env
+.env.*
+!.env.example
+
+# Local dev databases and dumps — the self-check FAILS when these get tracked
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+dump/
+
+# Market-data cache (parquet archive mirror, model artefacts) — rebuilt by `trader data sync`
+data/
+# Generated reports: only the committed summary files are tracked
+reports/*
+!reports/*.md
+!reports/*.json
+
+# Logs
+*.log
+logs/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store

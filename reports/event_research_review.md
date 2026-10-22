@@ -1,0 +1,66 @@
+# Claude review of `event_research`
+
+**Verdict: paper_trade_first**
+
+There is a statistically detectable post-announcement drift, mainly in Binance monitoring tags, Binance spot delistings and Upbit listings. Overall it shows CI90 [2.3%, 9.6%] on margin with clustered p=0.003, and costs are modelled more carefully than usual. The economic value, however, is fragile and concentrated:
+- Removing the 5 best of 276 announcements cuts the account result from +248% to +30% with roughly -50% DD.
+- Removing the best 10 makes it negative.
+- Excluding 2026-H1 leaves +13% over 5.5 years.
+- The latest half-year is -32%.
+
+The edge decays steeply with latency: +57% at 3 min and +10% at 5 min. Large moves already happen before the 60s fill, and the in-sample live playbooks overstate OOS returns by up to 2x. 5x leverage on illiquid, squeeze-prone small caps, evaluated on 1m bars, means 'zero liquidations' is not reassuring. Capacity is likely only a few thousand dollars per symbol.
+
+Do not deploy at the stated sizing. First, paper or shadow trade to measure real latency and fill slippage. If that confirms sub-90s fills and slippage near 0.15%, deploy small, restricted to the three significant types, at 2-3x leverage or the z=2 selection, with a pre-registered kill rule.
+
+## Strengths
+
+* Walk-forward selection with a lower-confidence-bound rule and a minimum of 10 prior events with known outcomes. The selection protocol itself shows no obvious look-ahead.
+* Costs are not trivial: 0.05% taker fee, 0.15% slippage per side, 0.3% stop slippage, gap-through stops filled at the open, stop-before-TP inside a bar, and historical funding charged on notional.
+* The announcement-clustered bootstrap on all trades excludes zero: mean 5.92% on margin, CI90 [2.27%, 9.62%], p=0.0034 over 276 announcements.
+* The effect survives 3x slippage (mean 3.8%, account +62%) and stricter selection at z=2 (+227% with max DD -25.9%, vs -42.3% at baseline).
+* The economic story is plausible and visible in the raw event study. Binance monitoring tags drift down a median -4.8% over 23h (only 26.6% of events up). Binance spot delistings drift down a median -8.7% over 23h (25% up). Upbit listings fade a median -3.7% over 23h.
+* Losing event types are already switched off live: upbit_krw_listing (113 OOS trades, mean -2.4%, CI90 [-4.8%, 0.0]) and upbit_delisting (14% win rate) both have playbook=null.
+* Delisted symbols (BSW, AMB, LINA, OMG, etc.) appear in the trades, which reduces the worry about survivorship from dropped tickers.
+* Leverage cap and the stop ≤80% of liquidation distance give zero liquidations in the 1m-bar simulation.
+
+## Weaknesses
+
+* Extreme tail dependence. The median return is 0.58% against a 5.92% mean, and the win rate is 51%. Removing the best 5 announcements cuts the account return from +248% to +29.9% (max DD -49.7%). Removing the best 10 turns it negative: -13.1%, mean 0.62%, DD -53.5%. Removing the best 10 trades leaves +43% with -54.8% DD. The criterion that is still 'met' without the top 5 is evidently too lenient.
+* Regime and time concentration. Excluding 2026-H1 leaves +13.15% over roughly 5.5 years with -49% DD. The account sat at or below its $1000 start from 2021 through mid-2024 (959 at 2024-H1). Only 6 of 12 half-years were positive.
+* The most recent half-year is sharply negative: 2026-H2 is -32.4% (5152 to 3483 equity) with a 41.8% win rate and -0.16% mean. That is the regime the live trader starts in.
+* Latency sensitivity is severe. Moving from 60s to 3 min entry drops the mean from 5.92% to 2.69% and the account from +248% to +57%. At 5 min the mean is 1.75%, the account +10.4% and DD -53.6%. Roughly 55-70% of the edge sits in the first 1-4 minutes, so a 60s announcement-to-fill assumption needs proof.
+* Much of the move is gone before the fill. Median jump_before_fill is -4.1% for monitoring tags, -10.7% for spot delistings, +14.7% for Upbit KRW listings and +3.7% for Upbit listings. The strategy trades the residual drift after a crowded first move, and any detection delay erodes it quickly.
+* Effective sample size is much smaller than 425. Monitoring tags contribute 84 trades from only 20 announcements, and spot delistings 60 trades from 22. Single announcements drive huge chunks of P&L. For example, 2025-04-03 alone produced VOXEL +1544, BSW +1018, NKN +817, PERP +646 and TON +307. The 2026-03-06 and 2026-05-22 tag batches are similar.
+* Per-type evidence is thin. Only monitoring_tag (p=0.027), spot_delisting (p=0.047, CI lower bound 0.2%) and upbit_listing (p=0.037) have CI90s that exclude zero. Three p-values near 0.03-0.05 across 8 types tested is roughly what multiple testing produces even with weak true effects.
+* There is a large multiple-testing surface that walk-forward does not cover. Each type has a grid over side, delay, stop, TP, trail, hold and leverage. On top of that sit researcher-level choices: the event taxonomy (e.g. splitting upbit_listing from upbit_krw_listing), the LCB z, the 24h horizon and the ≥10-event rule. z=1 is a weak penalty, and the number of configurations searched is not reported.
+* The live playbook statistics are in-sample fits and run well ahead of OOS. Spot delisting shows 27.2% in-sample vs 12.1% OOS, spot listing 7.0% vs 2.1%, and monitoring tag 18.3% vs 14.7%. Expect roughly 50% shrinkage of the displayed live numbers.
+* Parameters are unstable over time. The current spot_delisting playbook enters at +30m, but the KDA, FLM and CHESS OOS trades entered about 17m after the announcement. The current upbit_listing playbook enters at +60m, but HUMA, KERNEL and HYPER entered about 2m after. Different past parameter sets generated the OOS profit than the ones that will trade live.
+* Several types have weak or negative edge but still trade. binance_spot_listing has a 37.5% win rate and median -9.3%. binance_perp_delisting has CI90 [-7.7%, 11.1%]. upbit_warning has median -0.6%, so its mean is carried by a few tails.
+* Capacity is tiny. Targets are small-cap perps (XAN, ATA, NOM, AERGO, COS, BSW, HIFI) at the moment of announcement, when books are thin and one-sided. A 0.15% slippage figure is not credible at more than a few thousand dollars of notional per symbol. When a monitoring tag hits 5-10 tokens at once, the strategy shorts alongside every other bot.
+
+## Failure modes
+
+* Real detection plus order-routing latency of 2-5 minutes (announcement API lag, CDN caching, Upbit notice polling, rate limits) would cut expected edge to 1.7-2.7% per trade on margin. That is within one bad announcement of zero.
+* A short squeeze or wick on an illiquid perp inside a 1m bar could skip past both stop and liquidation. At 5x, the liquidation distance is about 18% (1/5 minus the 2% maintenance margin). Delisting and monitoring tokens can wick 30-100% in seconds, and mark-price vs last-price behaviour is not modelled. 'Zero liquidations' on 1m OHLC data is not evidence of zero live liquidation risk.
+* Exchange microstructure changes after these announcements are not modelled:
+- Binance often cuts maximum leverage, raises margin tiers and switches funding to a 1h interval for tagged or delisting perps.
+- Perp delistings move to reduce-only and force settlement at a possibly manipulated final price.
+- New shorts may be rejected or require more margin.
+* Crowded-short funding could flip deeply negative: up to the cap, potentially -2%/h, which is about -10%/h on margin at 5x. Monitoring-tag holds of up to 23h are exposed. Verify that the historical funding series used includes the shortened funding intervals.
+* Clustered drawdown: one bad multi-token announcement, such as a tag batch that squeezes, hits up to 30% of equity at 5x at once. A -50% margin loss on several positions together is consistent with the -42% to -55% account drawdowns already seen.
+* Edge decay or regime shift is already visible. The latest half-year is -32%, and both latency sensitivity and pre-fill jumps suggest the trade is becoming more competed. The 2026-H1 jackpot may not repeat.
+* Timestamp risk: if recorded announcement times are earlier than true public availability (back-dated release times, edited Upbit notices), fills at 'T+60s' are partly fictitious. The roughly 10% pre-fill gap in spot delistings would then be larger live.
+* Selection instability: walk-forward re-selection can flip the side or delay of a playbook after a few events, causing whipsaw losses. upbit_krw_listing is the example: it was traded 113 times at a loss before being switched off.
+
+## Suggested tests
+
+* Measure true announcement-to-fill latency live in paper or shadow mode for at least 50 events per active type. Then re-run the backtest with the empirical latency distribution, including its tail, rather than a fixed 60s.
+* Replay entries and stops on tick or 1s trade data plus order-book snapshots, with mark-price-based liquidation. Report the liquidation count and the worst intrabar adverse excursion relative to the 18% liquidation distance at 5x.
+* Model slippage as a function of notional vs top-of-book depth at T+1m. Report the account return at $1k, $10k and $50k notional per trade, and with simultaneous shorts across all tokens in one tag batch.
+* Report the account curve and DD with leverage capped at 2x and 3x, and for the z=2 variant alone, which had -25.9% DD. Consider deploying only the three types whose CI excludes zero.
+* Run a deflated-Sharpe or White's Reality Check / SPA test over the full count of configurations searched, including taxonomy and z choices. Also report the per-type fraction of walk-forward windows where the selected side and delay changed.
+* Leave-one-announcement-out and leave-one-half-year-out bootstraps on the account-level path, not just mean return on margin. Add a block-bootstrap distribution of max DD and time-to-recover.
+* Use a hold-out after the research freeze: at least 3 months of fully pre-registered paper trading with fixed playbooks. The kill rule: stop if the realised mean is below 1% on margin, or realised entry slippage is more than 2x the 0.15% assumption.
+* Audit announcement timestamps against an independent capture source (e.g. Wayback Machine, Telegram/Twitter bot timestamps, own scraper logs). Quantify any discrepancy.
+* Check funding data for 1h-interval settlements and the -2% cap episodes on tagged and delisting perps. Check leverage-tier changes and reduce-only periods on perp-delisting tokens, and whether short entry was actually permitted at the simulated time.
+* Stress-test with the 5 worst single announcements duplicated, i.e. assume tails are symmetric in the adverse direction. Also test a 30-50% squeeze on a 5x short batch occupying 30% of equity.

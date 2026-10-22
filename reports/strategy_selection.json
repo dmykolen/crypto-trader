@@ -1,0 +1,2190 @@
+{
+  "generated_at": "2026-10-22T23:17:02+00:00",
+  "window": {
+    "start": "2025-08-21T00:00:00+00:00",
+    "end": "2026-10-20T00:00:00+00:00",
+    "interval": "15m",
+    "train_days": 60,
+    "fold_days": 7
+  },
+  "protocol": "Every 7 days the selector picks — among trend / breakout / mean-reversion / ML-forecast strategies × parameters × leverage 2-10x × ATR stop/take-profit — the spec with the best lower confidence bound of daily log-growth over the previous 60 days (flat when no bound is positive); that spec trades the next fold. The folds are replayed as one $1000 account (15m bars, fees, slippage, funding, isolated liquidation), so the equity is entirely out-of-sample.",
+  "summary": {
+    "BTCUSDT": {
+      "oos_return_pct": 48.3,
+      "max_drawdown_pct": -64.68,
+      "sharpe_daily": 0.88,
+      "best_day_pnl": 355.4,
+      "worst_day_pnl": -533.34,
+      "days_pnl_ge_100": 18,
+      "days": 365,
+      "live_choice": "flat — no spec with a positive edge"
+    },
+    "ETHUSDT": {
+      "oos_return_pct": -49.18,
+      "max_drawdown_pct": -66.09,
+      "sharpe_daily": -0.82,
+      "best_day_pnl": 96.09,
+      "worst_day_pnl": -120.08,
+      "days_pnl_ge_100": 0,
+      "days": 365,
+      "live_choice": "flat — no spec with a positive edge"
+    },
+    "SOLUSDT": {
+      "oos_return_pct": -56.3,
+      "max_drawdown_pct": -66.9,
+      "sharpe_daily": -0.3,
+      "best_day_pnl": 193.82,
+      "worst_day_pnl": -213.85,
+      "days_pnl_ge_100": 6,
+      "days": 365,
+      "live_choice": "flat — no spec with a positive edge"
+    },
+    "DOGEUSDT": {
+      "oos_return_pct": -77.75,
+      "max_drawdown_pct": -84.2,
+      "sharpe_daily": -1.94,
+      "best_day_pnl": 153.11,
+      "worst_day_pnl": -277.93,
+      "days_pnl_ge_100": 4,
+      "days": 365,
+      "live_choice": "flat — no spec with a positive edge"
+    },
+    "XRPUSDT": {
+      "oos_return_pct": -93.44,
+      "max_drawdown_pct": -94.4,
+      "sharpe_daily": -2.36,
+      "best_day_pnl": 122.84,
+      "worst_day_pnl": -393.2,
+      "days_pnl_ge_100": 2,
+      "days": 365,
+      "live_choice": "flat — no spec with a positive edge"
+    }
+  },
+  "symbols": {
+    "BTCUSDT": {
+      "oos": {
+        "final_equity": 1482.99,
+        "pnl": 482.99,
+        "return_pct": 48.3,
+        "max_drawdown_pct": -64.68,
+        "sharpe_daily": 0.88,
+        "trades": 0,
+        "win_rate_pct": 0.0,
+        "profit_factor": null,
+        "liquidations": 0,
+        "best_day_pnl": 355.4,
+        "worst_day_pnl": -533.34,
+        "days_pnl_ge_100_per_1000": 18,
+        "days": 365
+      },
+      "current": {
+        "spec": {
+          "name": "mean_reversion",
+          "params": [
+            [
+              "er_max",
+              0.3
+            ],
+            [
+              "window",
+              48
+            ],
+            [
+              "z_in",
+              2.0
+            ]
+          ],
+          "leverage": 5.0,
+          "sl_atr": 0.0,
+          "tp_atr": 0.0
+        },
+        "describe": "mean_reversion(er_max=0.3, window=48, z_in=2) 5x SL 0ATR TP 0ATR",
+        "score": 0.0,
+        "tradable": false
+      },
+      "regime": {
+        "trend_strength_adx": 10.2,
+        "efficiency_ratio_48": 0.101,
+        "hurst": 0.559,
+        "vol_ratio_short_long": 0.69,
+        "realized_vol_per_bar_pct": 0.139,
+        "rsi_14": 42.8,
+        "ema_gap_48_192_atr": 0.6,
+        "drawdown_from_high_pct": -1.29
+      },
+      "folds": [
+        {
+          "from": "2025-10-20",
+          "to": "2025-10-27",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2025-10-27",
+          "to": "2025-11-03",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": -0.00167,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2025-11-03",
+          "to": "2025-11-10",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": -0.00044,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2025-11-10",
+          "to": "2025-11-17",
+          "spec": "donchian(entry=192, exit_=96) 2x SL 0ATR TP 0ATR",
+          "train_score": 0.00028,
+          "fold_return_pct": 9.61
+        },
+        {
+          "from": "2025-11-17",
+          "to": "2025-11-24",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 0ATR TP 0ATR",
+          "train_score": 0.00585,
+          "fold_return_pct": 26.41
+        },
+        {
+          "from": "2025-11-24",
+          "to": "2025-12-01",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 0ATR TP 8ATR",
+          "train_score": 0.00997,
+          "fold_return_pct": 12.81
+        },
+        {
+          "from": "2025-12-01",
+          "to": "2025-12-08",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 0ATR TP 8ATR",
+          "train_score": 0.01167,
+          "fold_return_pct": 19.92
+        },
+        {
+          "from": "2025-12-08",
+          "to": "2025-12-15",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 0ATR TP 8ATR",
+          "train_score": 0.01722,
+          "fold_return_pct": 24.77
+        },
+        {
+          "from": "2025-12-15",
+          "to": "2025-12-22",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 0ATR TP 8ATR",
+          "train_score": 0.01546,
+          "fold_return_pct": -36.95
+        },
+        {
+          "from": "2025-12-22",
+          "to": "2025-12-29",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 0ATR TP 8ATR",
+          "train_score": 0.00672,
+          "fold_return_pct": -34.14
+        },
+        {
+          "from": "2025-12-29",
+          "to": "2026-01-05",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": -0.00078,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-01-05",
+          "to": "2026-01-12",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": -0.00053,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-01-12",
+          "to": "2026-01-19",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": -0.00153,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-01-19",
+          "to": "2026-01-26",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": -0.00079,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-01-26",
+          "to": "2026-02-02",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": -0.0004,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-02-02",
+          "to": "2026-02-09",
+          "spec": "mean_reversion(er_max=0.3, window=96, z_in=2.5) 2x SL 2ATR TP 0ATR",
+          "train_score": 9e-05,
+          "fold_return_pct": -8.08
+        },
+        {
+          "from": "2026-02-09",
+          "to": "2026-02-16",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": -0.00104,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-02-16",
+          "to": "2026-02-23",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": -0.00247,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-02-23",
+          "to": "2026-03-02",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 0ATR TP 8ATR",
+          "train_score": 0.00285,
+          "fold_return_pct": 20.07
+        },
+        {
+          "from": "2026-03-02",
+          "to": "2026-03-09",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 0ATR TP 8ATR",
+          "train_score": 0.00712,
+          "fold_return_pct": 42.99
+        },
+        {
+          "from": "2026-03-09",
+          "to": "2026-03-16",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 0ATR TP 8ATR",
+          "train_score": 0.01131,
+          "fold_return_pct": 13.66
+        },
+        {
+          "from": "2026-03-16",
+          "to": "2026-03-23",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 0ATR TP 8ATR",
+          "train_score": 0.01191,
+          "fold_return_pct": 28.75
+        },
+        {
+          "from": "2026-03-23",
+          "to": "2026-03-30",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 0ATR TP 8ATR",
+          "train_score": 0.01429,
+          "fold_return_pct": -21.11
+        },
+        {
+          "from": "2026-03-30",
+          "to": "2026-04-06",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 0ATR TP 8ATR",
+          "train_score": 0.00967,
+          "fold_return_pct": -28.43
+        },
+        {
+          "from": "2026-04-06",
+          "to": "2026-04-13",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 0ATR TP 4ATR",
+          "train_score": 0.00083,
+          "fold_return_pct": 13.94
+        },
+        {
+          "from": "2026-04-13",
+          "to": "2026-04-20",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 0ATR TP 4ATR",
+          "train_score": 0.00164,
+          "fold_return_pct": 19.11
+        },
+        {
+          "from": "2026-04-20",
+          "to": "2026-04-27",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 0ATR TP 4ATR",
+          "train_score": 0.00199,
+          "fold_return_pct": -11.88
+        },
+        {
+          "from": "2026-04-27",
+          "to": "2026-05-04",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-05-04",
+          "to": "2026-05-11",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-05-11",
+          "to": "2026-05-18",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-05-18",
+          "to": "2026-05-25",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-05-25",
+          "to": "2026-06-01",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-06-01",
+          "to": "2026-06-08",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-06-08",
+          "to": "2026-06-15",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-06-15",
+          "to": "2026-06-22",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-06-22",
+          "to": "2026-06-29",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-06-29",
+          "to": "2026-07-06",
+          "spec": "donchian(entry=192, exit_=96) 2x SL 2ATR TP 0ATR",
+          "train_score": 0.00061,
+          "fold_return_pct": -3.2
+        },
+        {
+          "from": "2026-07-06",
+          "to": "2026-07-13",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-07-13",
+          "to": "2026-07-20",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-07-20",
+          "to": "2026-07-27",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-07-27",
+          "to": "2026-08-03",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-08-03",
+          "to": "2026-08-10",
+          "spec": "mean_reversion(er_max=0.3, window=48, z_in=2.5) 2x SL 0ATR TP 8ATR",
+          "train_score": 0.00247,
+          "fold_return_pct": 0.02
+        },
+        {
+          "from": "2026-08-10",
+          "to": "2026-08-17",
+          "spec": "mean_reversion(er_max=0.3, window=48, z_in=2.5) 2x SL 0ATR TP 8ATR",
+          "train_score": 0.00024,
+          "fold_return_pct": 1.14
+        },
+        {
+          "from": "2026-08-17",
+          "to": "2026-08-24",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-08-24",
+          "to": "2026-08-31",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-08-31",
+          "to": "2026-09-07",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-09-07",
+          "to": "2026-09-14",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-09-14",
+          "to": "2026-09-21",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-09-21",
+          "to": "2026-09-28",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-09-28",
+          "to": "2026-10-05",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-10-05",
+          "to": "2026-10-12",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-10-12",
+          "to": "2026-10-19",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-10-19",
+          "to": "2026-10-19",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        }
+      ]
+    },
+    "ETHUSDT": {
+      "oos": {
+        "final_equity": 508.23,
+        "pnl": -491.77,
+        "return_pct": -49.18,
+        "max_drawdown_pct": -66.09,
+        "sharpe_daily": -0.82,
+        "trades": 0,
+        "win_rate_pct": 0.0,
+        "profit_factor": null,
+        "liquidations": 0,
+        "best_day_pnl": 96.09,
+        "worst_day_pnl": -120.08,
+        "days_pnl_ge_100_per_1000": 0,
+        "days": 365
+      },
+      "current": {
+        "spec": {
+          "name": "mean_reversion",
+          "params": [
+            [
+              "er_max",
+              0.3
+            ],
+            [
+              "window",
+              48
+            ],
+            [
+              "z_in",
+              2.0
+            ]
+          ],
+          "leverage": 5.0,
+          "sl_atr": 0.0,
+          "tp_atr": 0.0
+        },
+        "describe": "mean_reversion(er_max=0.3, window=48, z_in=2) 5x SL 0ATR TP 0ATR",
+        "score": 0.0,
+        "tradable": false
+      },
+      "regime": {
+        "trend_strength_adx": 13.9,
+        "efficiency_ratio_48": 0.065,
+        "hurst": 0.533,
+        "vol_ratio_short_long": 0.65,
+        "realized_vol_per_bar_pct": 0.221,
+        "rsi_14": 52.7,
+        "ema_gap_48_192_atr": -0.45,
+        "drawdown_from_high_pct": -1.5
+      },
+      "folds": [
+        {
+          "from": "2025-10-20",
+          "to": "2025-10-27",
+          "spec": "donchian(entry=192, exit_=96) 2x SL 4ATR TP 4ATR",
+          "train_score": 3e-05,
+          "fold_return_pct": -12.89
+        },
+        {
+          "from": "2025-10-27",
+          "to": "2025-11-03",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": -0.0005,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2025-11-03",
+          "to": "2025-11-10",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": -0.00054,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2025-11-10",
+          "to": "2025-11-17",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": -0.00012,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2025-11-17",
+          "to": "2025-11-24",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": -0.00243,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2025-11-24",
+          "to": "2025-12-01",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": -0.00292,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2025-12-01",
+          "to": "2025-12-08",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": -0.00566,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2025-12-08",
+          "to": "2025-12-15",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": -0.00366,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2025-12-15",
+          "to": "2025-12-22",
+          "spec": "donchian(entry=192, exit_=96) 2x SL 0ATR TP 4ATR",
+          "train_score": 1e-05,
+          "fold_return_pct": -18.69
+        },
+        {
+          "from": "2025-12-22",
+          "to": "2025-12-29",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2025-12-29",
+          "to": "2026-01-05",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-01-05",
+          "to": "2026-01-12",
+          "spec": "mean_reversion(er_max=0.3, window=96, z_in=2.5) 2x SL 0ATR TP 0ATR",
+          "train_score": 0.00016,
+          "fold_return_pct": 3.97
+        },
+        {
+          "from": "2026-01-12",
+          "to": "2026-01-19",
+          "spec": "mean_reversion(er_max=0.3, window=96, z_in=2.5) 2x SL 0ATR TP 0ATR",
+          "train_score": 0.00122,
+          "fold_return_pct": -1.38
+        },
+        {
+          "from": "2026-01-19",
+          "to": "2026-01-26",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-01-26",
+          "to": "2026-02-02",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-02-02",
+          "to": "2026-02-09",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-02-09",
+          "to": "2026-02-16",
+          "spec": "trend_ema(adx_min=15, fast=48, slow=192) 2x SL 0ATR TP 8ATR",
+          "train_score": 0.00129,
+          "fold_return_pct": -12.93
+        },
+        {
+          "from": "2026-02-16",
+          "to": "2026-02-23",
+          "spec": "donchian(entry=192, exit_=96) 2x SL 2ATR TP 0ATR",
+          "train_score": 0.00117,
+          "fold_return_pct": -10.76
+        },
+        {
+          "from": "2026-02-23",
+          "to": "2026-03-02",
+          "spec": "mean_reversion(er_max=0.3, window=96, z_in=2) 2x SL 4ATR TP 4ATR",
+          "train_score": 0.00063,
+          "fold_return_pct": -11.4
+        },
+        {
+          "from": "2026-03-02",
+          "to": "2026-03-09",
+          "spec": "trend_ema(adx_min=15, fast=48, slow=192) 2x SL 4ATR TP 8ATR",
+          "train_score": 0.00223,
+          "fold_return_pct": -16.96
+        },
+        {
+          "from": "2026-03-09",
+          "to": "2026-03-16",
+          "spec": "donchian(entry=192, exit_=96) 2x SL 2ATR TP 0ATR",
+          "train_score": 0.00066,
+          "fold_return_pct": -4.82
+        },
+        {
+          "from": "2026-03-16",
+          "to": "2026-03-23",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 0ATR TP 4ATR",
+          "train_score": 0.00253,
+          "fold_return_pct": 10.37
+        },
+        {
+          "from": "2026-03-23",
+          "to": "2026-03-30",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 0ATR TP 4ATR",
+          "train_score": 0.00256,
+          "fold_return_pct": 3.35
+        },
+        {
+          "from": "2026-03-30",
+          "to": "2026-04-06",
+          "spec": "donchian(entry=192, exit_=96) 2x SL 4ATR TP 0ATR",
+          "train_score": 0.0006,
+          "fold_return_pct": -3.82
+        },
+        {
+          "from": "2026-04-06",
+          "to": "2026-04-13",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-04-13",
+          "to": "2026-04-20",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 2ATR TP 4ATR",
+          "train_score": 0.00117,
+          "fold_return_pct": 18.8
+        },
+        {
+          "from": "2026-04-20",
+          "to": "2026-04-27",
+          "spec": "donchian(entry=192, exit_=96) 10x SL 2ATR TP 4ATR",
+          "train_score": 0.00363,
+          "fold_return_pct": 11.87
+        },
+        {
+          "from": "2026-04-27",
+          "to": "2026-05-04",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 0ATR TP 4ATR",
+          "train_score": 0.00511,
+          "fold_return_pct": 1.8
+        },
+        {
+          "from": "2026-05-04",
+          "to": "2026-05-11",
+          "spec": "trend_ema(adx_min=25, fast=48, slow=192) 5x SL 4ATR TP 8ATR",
+          "train_score": 0.00383,
+          "fold_return_pct": 0.18
+        },
+        {
+          "from": "2026-05-11",
+          "to": "2026-05-18",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 2ATR TP 4ATR",
+          "train_score": 0.00079,
+          "fold_return_pct": -3.28
+        },
+        {
+          "from": "2026-05-18",
+          "to": "2026-05-25",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-05-25",
+          "to": "2026-06-01",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-06-01",
+          "to": "2026-06-08",
+          "spec": "trend_ema(adx_min=25, fast=24, slow=96) 2x SL 4ATR TP 8ATR",
+          "train_score": 0.00018,
+          "fold_return_pct": 25.58
+        },
+        {
+          "from": "2026-06-08",
+          "to": "2026-06-15",
+          "spec": "trend_ema(adx_min=25, fast=24, slow=96) 5x SL 4ATR TP 8ATR",
+          "train_score": 0.00364,
+          "fold_return_pct": -28.78
+        },
+        {
+          "from": "2026-06-15",
+          "to": "2026-06-22",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-06-22",
+          "to": "2026-06-29",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-06-29",
+          "to": "2026-07-06",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-07-06",
+          "to": "2026-07-13",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-07-13",
+          "to": "2026-07-20",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-07-20",
+          "to": "2026-07-27",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-07-27",
+          "to": "2026-08-03",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-08-03",
+          "to": "2026-08-10",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-08-10",
+          "to": "2026-08-17",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-08-17",
+          "to": "2026-08-24",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-08-24",
+          "to": "2026-08-31",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-08-31",
+          "to": "2026-09-07",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-09-07",
+          "to": "2026-09-14",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-09-14",
+          "to": "2026-09-21",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-09-21",
+          "to": "2026-09-28",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-09-28",
+          "to": "2026-10-05",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-10-05",
+          "to": "2026-10-12",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-10-12",
+          "to": "2026-10-19",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-10-19",
+          "to": "2026-10-19",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        }
+      ]
+    },
+    "SOLUSDT": {
+      "oos": {
+        "final_equity": 437.04,
+        "pnl": -562.96,
+        "return_pct": -56.3,
+        "max_drawdown_pct": -66.9,
+        "sharpe_daily": -0.3,
+        "trades": 0,
+        "win_rate_pct": 0.0,
+        "profit_factor": null,
+        "liquidations": 0,
+        "best_day_pnl": 193.82,
+        "worst_day_pnl": -213.85,
+        "days_pnl_ge_100_per_1000": 6,
+        "days": 365
+      },
+      "current": {
+        "spec": {
+          "name": "mean_reversion",
+          "params": [
+            [
+              "er_max",
+              0.3
+            ],
+            [
+              "window",
+              48
+            ],
+            [
+              "z_in",
+              2.0
+            ]
+          ],
+          "leverage": 5.0,
+          "sl_atr": 0.0,
+          "tp_atr": 0.0
+        },
+        "describe": "mean_reversion(er_max=0.3, window=48, z_in=2) 5x SL 0ATR TP 0ATR",
+        "score": 0.0,
+        "tradable": false
+      },
+      "regime": {
+        "trend_strength_adx": 20.8,
+        "efficiency_ratio_48": 0.043,
+        "hurst": 0.507,
+        "vol_ratio_short_long": 0.83,
+        "realized_vol_per_bar_pct": 0.267,
+        "rsi_14": 56.7,
+        "ema_gap_48_192_atr": 1.01,
+        "drawdown_from_high_pct": -0.8
+      },
+      "folds": [
+        {
+          "from": "2025-10-20",
+          "to": "2025-10-27",
+          "spec": "donchian(entry=192, exit_=96) 2x SL 0ATR TP 0ATR",
+          "train_score": 0.00033,
+          "fold_return_pct": -17.57
+        },
+        {
+          "from": "2025-10-27",
+          "to": "2025-11-03",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": -0.00279,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2025-11-03",
+          "to": "2025-11-10",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": -0.0019,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2025-11-10",
+          "to": "2025-11-17",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": -0.00178,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2025-11-17",
+          "to": "2025-11-24",
+          "spec": "donchian(entry=48, exit_=24) 2x SL 2ATR TP 4ATR",
+          "train_score": 0.00047,
+          "fold_return_pct": 1.18
+        },
+        {
+          "from": "2025-11-24",
+          "to": "2025-12-01",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": -0.0006,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2025-12-01",
+          "to": "2025-12-08",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": -0.00082,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2025-12-08",
+          "to": "2025-12-15",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": -0.00073,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2025-12-15",
+          "to": "2025-12-22",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2025-12-22",
+          "to": "2025-12-29",
+          "spec": "mean_reversion(er_max=0.3, window=96, z_in=2) 2x SL 0ATR TP 8ATR",
+          "train_score": 0.00062,
+          "fold_return_pct": 26.31
+        },
+        {
+          "from": "2025-12-29",
+          "to": "2026-01-05",
+          "spec": "mean_reversion(er_max=0.3, window=96, z_in=2.5) 5x SL 4ATR TP 0ATR",
+          "train_score": 0.00769,
+          "fold_return_pct": -2.26
+        },
+        {
+          "from": "2026-01-05",
+          "to": "2026-01-12",
+          "spec": "mean_reversion(er_max=0.3, window=96, z_in=2.5) 5x SL 4ATR TP 0ATR",
+          "train_score": 0.00346,
+          "fold_return_pct": -12.21
+        },
+        {
+          "from": "2026-01-12",
+          "to": "2026-01-19",
+          "spec": "mean_reversion(er_max=0.3, window=96, z_in=2) 2x SL 0ATR TP 8ATR",
+          "train_score": 0.00529,
+          "fold_return_pct": 8.76
+        },
+        {
+          "from": "2026-01-19",
+          "to": "2026-01-26",
+          "spec": "mean_reversion(er_max=0.3, window=96, z_in=2) 2x SL 0ATR TP 8ATR",
+          "train_score": 0.00376,
+          "fold_return_pct": -7.08
+        },
+        {
+          "from": "2026-01-26",
+          "to": "2026-02-02",
+          "spec": "mean_reversion(er_max=0.3, window=96, z_in=2.5) 5x SL 4ATR TP 0ATR",
+          "train_score": 0.00405,
+          "fold_return_pct": -12.74
+        },
+        {
+          "from": "2026-02-02",
+          "to": "2026-02-09",
+          "spec": "mean_reversion(er_max=0.3, window=96, z_in=2) 5x SL 4ATR TP 8ATR",
+          "train_score": 0.00444,
+          "fold_return_pct": -25.27
+        },
+        {
+          "from": "2026-02-09",
+          "to": "2026-02-16",
+          "spec": "mean_reversion(er_max=0.3, window=96, z_in=2) 2x SL 4ATR TP 8ATR",
+          "train_score": 0.0012,
+          "fold_return_pct": -0.89
+        },
+        {
+          "from": "2026-02-16",
+          "to": "2026-02-23",
+          "spec": "donchian(entry=192, exit_=96) 2x SL 4ATR TP 8ATR",
+          "train_score": 0.00033,
+          "fold_return_pct": -8.19
+        },
+        {
+          "from": "2026-02-23",
+          "to": "2026-03-02",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 0ATR TP 8ATR",
+          "train_score": 0.00187,
+          "fold_return_pct": 89.74
+        },
+        {
+          "from": "2026-03-02",
+          "to": "2026-03-09",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 0ATR TP 8ATR",
+          "train_score": 0.0144,
+          "fold_return_pct": -33.45
+        },
+        {
+          "from": "2026-03-09",
+          "to": "2026-03-16",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 0ATR TP 8ATR",
+          "train_score": 0.01048,
+          "fold_return_pct": 0.75
+        },
+        {
+          "from": "2026-03-16",
+          "to": "2026-03-23",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 0ATR TP 8ATR",
+          "train_score": 0.01218,
+          "fold_return_pct": 23.47
+        },
+        {
+          "from": "2026-03-23",
+          "to": "2026-03-30",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 0ATR TP 8ATR",
+          "train_score": 0.01382,
+          "fold_return_pct": -0.9
+        },
+        {
+          "from": "2026-03-30",
+          "to": "2026-04-06",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 0ATR TP 8ATR",
+          "train_score": 0.0112,
+          "fold_return_pct": -47.64
+        },
+        {
+          "from": "2026-04-06",
+          "to": "2026-04-13",
+          "spec": "donchian(entry=192, exit_=96) 2x SL 2ATR TP 8ATR",
+          "train_score": 0.00079,
+          "fold_return_pct": -7.99
+        },
+        {
+          "from": "2026-04-13",
+          "to": "2026-04-20",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-04-20",
+          "to": "2026-04-27",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-04-27",
+          "to": "2026-05-04",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-05-04",
+          "to": "2026-05-11",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 2ATR TP 4ATR",
+          "train_score": 0.00106,
+          "fold_return_pct": -5.52
+        },
+        {
+          "from": "2026-05-11",
+          "to": "2026-05-18",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-05-18",
+          "to": "2026-05-25",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-05-25",
+          "to": "2026-06-01",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-06-01",
+          "to": "2026-06-08",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-06-08",
+          "to": "2026-06-15",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-06-15",
+          "to": "2026-06-22",
+          "spec": "donchian(entry=192, exit_=96) 2x SL 4ATR TP 4ATR",
+          "train_score": 6e-05,
+          "fold_return_pct": 1.71
+        },
+        {
+          "from": "2026-06-22",
+          "to": "2026-06-29",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 0ATR TP 4ATR",
+          "train_score": 0.0025,
+          "fold_return_pct": 25.16
+        },
+        {
+          "from": "2026-06-29",
+          "to": "2026-07-06",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 0ATR TP 4ATR",
+          "train_score": 0.00356,
+          "fold_return_pct": 16.07
+        },
+        {
+          "from": "2026-07-06",
+          "to": "2026-07-13",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 0ATR TP 4ATR",
+          "train_score": 0.0045,
+          "fold_return_pct": -22.46
+        },
+        {
+          "from": "2026-07-13",
+          "to": "2026-07-20",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-07-20",
+          "to": "2026-07-27",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-07-27",
+          "to": "2026-08-03",
+          "spec": "donchian(entry=96, exit_=48) 5x SL 4ATR TP 4ATR",
+          "train_score": 0.00613,
+          "fold_return_pct": 2.33
+        },
+        {
+          "from": "2026-08-03",
+          "to": "2026-08-10",
+          "spec": "donchian(entry=96, exit_=48) 5x SL 4ATR TP 4ATR",
+          "train_score": 0.00195,
+          "fold_return_pct": -5.7
+        },
+        {
+          "from": "2026-08-10",
+          "to": "2026-08-17",
+          "spec": "donchian(entry=192, exit_=96) 2x SL 0ATR TP 4ATR",
+          "train_score": 0.00039,
+          "fold_return_pct": -5.44
+        },
+        {
+          "from": "2026-08-17",
+          "to": "2026-08-24",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-08-24",
+          "to": "2026-08-31",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-08-31",
+          "to": "2026-09-07",
+          "spec": "donchian(entry=96, exit_=48) 2x SL 0ATR TP 4ATR",
+          "train_score": 0.00038,
+          "fold_return_pct": 1.15
+        },
+        {
+          "from": "2026-09-07",
+          "to": "2026-09-14",
+          "spec": "donchian(entry=96, exit_=48) 2x SL 0ATR TP 4ATR",
+          "train_score": 0.00022,
+          "fold_return_pct": 6.66
+        },
+        {
+          "from": "2026-09-14",
+          "to": "2026-09-21",
+          "spec": "donchian(entry=96, exit_=48) 5x SL 0ATR TP 4ATR",
+          "train_score": 0.00168,
+          "fold_return_pct": 19.22
+        },
+        {
+          "from": "2026-09-21",
+          "to": "2026-09-28",
+          "spec": "donchian(entry=96, exit_=48) 5x SL 0ATR TP 4ATR",
+          "train_score": 0.0049,
+          "fold_return_pct": -9.78
+        },
+        {
+          "from": "2026-09-28",
+          "to": "2026-10-05",
+          "spec": "donchian(entry=96, exit_=48) 2x SL 0ATR TP 4ATR",
+          "train_score": 0.00049,
+          "fold_return_pct": -6.21
+        },
+        {
+          "from": "2026-10-05",
+          "to": "2026-10-12",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-10-12",
+          "to": "2026-10-19",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-10-19",
+          "to": "2026-10-19",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        }
+      ]
+    },
+    "DOGEUSDT": {
+      "oos": {
+        "final_equity": 222.47,
+        "pnl": -777.53,
+        "return_pct": -77.75,
+        "max_drawdown_pct": -84.2,
+        "sharpe_daily": -1.94,
+        "trades": 0,
+        "win_rate_pct": 0.0,
+        "profit_factor": null,
+        "liquidations": 0,
+        "best_day_pnl": 153.11,
+        "worst_day_pnl": -277.93,
+        "days_pnl_ge_100_per_1000": 4,
+        "days": 365
+      },
+      "current": {
+        "spec": {
+          "name": "mean_reversion",
+          "params": [
+            [
+              "er_max",
+              0.3
+            ],
+            [
+              "window",
+              48
+            ],
+            [
+              "z_in",
+              2.0
+            ]
+          ],
+          "leverage": 2.0,
+          "sl_atr": 0.0,
+          "tp_atr": 0.0
+        },
+        "describe": "mean_reversion(er_max=0.3, window=48, z_in=2) 2x SL 0ATR TP 0ATR",
+        "score": 0.0,
+        "tradable": false
+      },
+      "regime": {
+        "trend_strength_adx": 13.7,
+        "efficiency_ratio_48": 0.096,
+        "hurst": 0.45,
+        "vol_ratio_short_long": 0.63,
+        "realized_vol_per_bar_pct": 0.241,
+        "rsi_14": 58.0,
+        "ema_gap_48_192_atr": 0.32,
+        "drawdown_from_high_pct": -0.37
+      },
+      "folds": [
+        {
+          "from": "2025-10-20",
+          "to": "2025-10-27",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2025-10-27",
+          "to": "2025-11-03",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": -0.00047,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2025-11-03",
+          "to": "2025-11-10",
+          "spec": "donchian(entry=48, exit_=24) 2x SL 0ATR TP 0ATR",
+          "train_score": 0.00043,
+          "fold_return_pct": -3.29
+        },
+        {
+          "from": "2025-11-10",
+          "to": "2025-11-17",
+          "spec": "donchian(entry=48, exit_=24) 2x SL 0ATR TP 8ATR",
+          "train_score": 0.00214,
+          "fold_return_pct": -0.86
+        },
+        {
+          "from": "2025-11-17",
+          "to": "2025-11-24",
+          "spec": "donchian(entry=48, exit_=24) 2x SL 0ATR TP 8ATR",
+          "train_score": 0.00141,
+          "fold_return_pct": 33.93
+        },
+        {
+          "from": "2025-11-24",
+          "to": "2025-12-01",
+          "spec": "donchian(entry=48, exit_=24) 2x SL 0ATR TP 8ATR",
+          "train_score": 0.00337,
+          "fold_return_pct": -19.43
+        },
+        {
+          "from": "2025-12-01",
+          "to": "2025-12-08",
+          "spec": "donchian(entry=48, exit_=24) 2x SL 0ATR TP 8ATR",
+          "train_score": 0.00138,
+          "fold_return_pct": 10.99
+        },
+        {
+          "from": "2025-12-08",
+          "to": "2025-12-15",
+          "spec": "donchian(entry=48, exit_=24) 2x SL 0ATR TP 8ATR",
+          "train_score": 0.00365,
+          "fold_return_pct": 0.95
+        },
+        {
+          "from": "2025-12-15",
+          "to": "2025-12-22",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2025-12-22",
+          "to": "2025-12-29",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2025-12-29",
+          "to": "2026-01-05",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-01-05",
+          "to": "2026-01-12",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-01-12",
+          "to": "2026-01-19",
+          "spec": "mean_reversion(er_max=0.3, window=96, z_in=2) 2x SL 4ATR TP 4ATR",
+          "train_score": 0.00101,
+          "fold_return_pct": -2.55
+        },
+        {
+          "from": "2026-01-19",
+          "to": "2026-01-26",
+          "spec": "trend_ema(adx_min=15, fast=48, slow=192) 2x SL 0ATR TP 4ATR",
+          "train_score": 0.00075,
+          "fold_return_pct": 7.0
+        },
+        {
+          "from": "2026-01-26",
+          "to": "2026-02-02",
+          "spec": "mean_reversion(er_max=0.3, window=96, z_in=2) 2x SL 2ATR TP 0ATR",
+          "train_score": 0.00109,
+          "fold_return_pct": 6.15
+        },
+        {
+          "from": "2026-02-02",
+          "to": "2026-02-09",
+          "spec": "mean_reversion(er_max=0.3, window=96, z_in=2) 5x SL 2ATR TP 0ATR",
+          "train_score": 0.00346,
+          "fold_return_pct": -29.84
+        },
+        {
+          "from": "2026-02-09",
+          "to": "2026-02-16",
+          "spec": "mean_reversion(er_max=0.3, window=48, z_in=2.5) 5x SL 4ATR TP 0ATR",
+          "train_score": 0.00467,
+          "fold_return_pct": -55.9
+        },
+        {
+          "from": "2026-02-16",
+          "to": "2026-02-23",
+          "spec": "donchian(entry=192, exit_=96) 2x SL 4ATR TP 8ATR",
+          "train_score": 0.00106,
+          "fold_return_pct": -11.73
+        },
+        {
+          "from": "2026-02-23",
+          "to": "2026-03-02",
+          "spec": "trend_ema(adx_min=25, fast=24, slow=96) 2x SL 0ATR TP 0ATR",
+          "train_score": 8e-05,
+          "fold_return_pct": -4.89
+        },
+        {
+          "from": "2026-03-02",
+          "to": "2026-03-09",
+          "spec": "donchian(entry=192, exit_=96) 2x SL 2ATR TP 8ATR",
+          "train_score": 0.00098,
+          "fold_return_pct": -9.92
+        },
+        {
+          "from": "2026-03-09",
+          "to": "2026-03-16",
+          "spec": "mean_reversion(er_max=0.3, window=96, z_in=2) 2x SL 4ATR TP 8ATR",
+          "train_score": 0.00012,
+          "fold_return_pct": -7.78
+        },
+        {
+          "from": "2026-03-16",
+          "to": "2026-03-23",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-03-23",
+          "to": "2026-03-30",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-03-30",
+          "to": "2026-04-06",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-04-06",
+          "to": "2026-04-13",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-04-13",
+          "to": "2026-04-20",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-04-20",
+          "to": "2026-04-27",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-04-27",
+          "to": "2026-05-04",
+          "spec": "donchian(entry=192, exit_=96) 2x SL 2ATR TP 4ATR",
+          "train_score": 0.0003,
+          "fold_return_pct": 0.93
+        },
+        {
+          "from": "2026-05-04",
+          "to": "2026-05-11",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-05-11",
+          "to": "2026-05-18",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 2ATR TP 4ATR",
+          "train_score": 0.00036,
+          "fold_return_pct": -15.24
+        },
+        {
+          "from": "2026-05-18",
+          "to": "2026-05-25",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-05-25",
+          "to": "2026-06-01",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-06-01",
+          "to": "2026-06-08",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-06-08",
+          "to": "2026-06-15",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-06-15",
+          "to": "2026-06-22",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-06-22",
+          "to": "2026-06-29",
+          "spec": "trend_ema(adx_min=15, fast=24, slow=96) 2x SL 0ATR TP 4ATR",
+          "train_score": 0.00133,
+          "fold_return_pct": -1.41
+        },
+        {
+          "from": "2026-06-29",
+          "to": "2026-07-06",
+          "spec": "trend_ema(adx_min=15, fast=24, slow=96) 2x SL 0ATR TP 4ATR",
+          "train_score": 0.00052,
+          "fold_return_pct": -1.92
+        },
+        {
+          "from": "2026-07-06",
+          "to": "2026-07-13",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-07-13",
+          "to": "2026-07-20",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-07-20",
+          "to": "2026-07-27",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-07-27",
+          "to": "2026-08-03",
+          "spec": "trend_ema(adx_min=15, fast=24, slow=96) 2x SL 0ATR TP 4ATR",
+          "train_score": 0.00037,
+          "fold_return_pct": -2.85
+        },
+        {
+          "from": "2026-08-03",
+          "to": "2026-08-10",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-08-10",
+          "to": "2026-08-17",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-08-17",
+          "to": "2026-08-24",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-08-24",
+          "to": "2026-08-31",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-08-31",
+          "to": "2026-09-07",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-09-07",
+          "to": "2026-09-14",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-09-14",
+          "to": "2026-09-21",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-09-21",
+          "to": "2026-09-28",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-09-28",
+          "to": "2026-10-05",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-10-05",
+          "to": "2026-10-12",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-10-12",
+          "to": "2026-10-19",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-10-19",
+          "to": "2026-10-19",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        }
+      ]
+    },
+    "XRPUSDT": {
+      "oos": {
+        "final_equity": 65.56,
+        "pnl": -934.44,
+        "return_pct": -93.44,
+        "max_drawdown_pct": -94.4,
+        "sharpe_daily": -2.36,
+        "trades": 0,
+        "win_rate_pct": 0.0,
+        "profit_factor": null,
+        "liquidations": 0,
+        "best_day_pnl": 122.84,
+        "worst_day_pnl": -393.2,
+        "days_pnl_ge_100_per_1000": 2,
+        "days": 365
+      },
+      "current": {
+        "spec": {
+          "name": "mean_reversion",
+          "params": [
+            [
+              "er_max",
+              0.3
+            ],
+            [
+              "window",
+              48
+            ],
+            [
+              "z_in",
+              2.0
+            ]
+          ],
+          "leverage": 2.0,
+          "sl_atr": 0.0,
+          "tp_atr": 0.0
+        },
+        "describe": "mean_reversion(er_max=0.3, window=48, z_in=2) 2x SL 0ATR TP 0ATR",
+        "score": 0.0,
+        "tradable": false
+      },
+      "regime": {
+        "trend_strength_adx": 7.6,
+        "efficiency_ratio_48": 0.007,
+        "hurst": 0.512,
+        "vol_ratio_short_long": 0.64,
+        "realized_vol_per_bar_pct": 0.222,
+        "rsi_14": 49.1,
+        "ema_gap_48_192_atr": 0.56,
+        "drawdown_from_high_pct": -1.03
+      },
+      "folds": [
+        {
+          "from": "2025-10-20",
+          "to": "2025-10-27",
+          "spec": "trend_ema(adx_min=15, fast=24, slow=96) 5x SL 0ATR TP 4ATR",
+          "train_score": 0.01102,
+          "fold_return_pct": -22.42
+        },
+        {
+          "from": "2025-10-27",
+          "to": "2025-11-03",
+          "spec": "trend_ema(adx_min=15, fast=24, slow=96) 5x SL 0ATR TP 4ATR",
+          "train_score": 0.00244,
+          "fold_return_pct": -36.67
+        },
+        {
+          "from": "2025-11-03",
+          "to": "2025-11-10",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 0ATR TP 4ATR",
+          "train_score": 0.00216,
+          "fold_return_pct": -44.56
+        },
+        {
+          "from": "2025-11-10",
+          "to": "2025-11-17",
+          "spec": "donchian(entry=96, exit_=48) 5x SL 0ATR TP 4ATR",
+          "train_score": 0.00296,
+          "fold_return_pct": -12.7
+        },
+        {
+          "from": "2025-11-17",
+          "to": "2025-11-24",
+          "spec": "trend_ema(adx_min=15, fast=24, slow=96) 5x SL 4ATR TP 4ATR",
+          "train_score": 0.007,
+          "fold_return_pct": -14.57
+        },
+        {
+          "from": "2025-11-24",
+          "to": "2025-12-01",
+          "spec": "trend_ema(adx_min=15, fast=24, slow=96) 2x SL 4ATR TP 4ATR",
+          "train_score": 0.00187,
+          "fold_return_pct": -20.35
+        },
+        {
+          "from": "2025-12-01",
+          "to": "2025-12-08",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": -0.00146,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2025-12-08",
+          "to": "2025-12-15",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": -0.00228,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2025-12-15",
+          "to": "2025-12-22",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2025-12-22",
+          "to": "2025-12-29",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2025-12-29",
+          "to": "2026-01-05",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-01-05",
+          "to": "2026-01-12",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-01-12",
+          "to": "2026-01-19",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-01-19",
+          "to": "2026-01-26",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-01-26",
+          "to": "2026-02-02",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-02-02",
+          "to": "2026-02-09",
+          "spec": "trend_ema(adx_min=15, fast=48, slow=192) 2x SL 0ATR TP 8ATR",
+          "train_score": 0.00057,
+          "fold_return_pct": 6.85
+        },
+        {
+          "from": "2026-02-09",
+          "to": "2026-02-16",
+          "spec": "mean_reversion(er_max=0.5, window=96, z_in=2.5) 5x SL 4ATR TP 4ATR",
+          "train_score": 0.00396,
+          "fold_return_pct": 19.04
+        },
+        {
+          "from": "2026-02-16",
+          "to": "2026-02-23",
+          "spec": "mean_reversion(er_max=0.5, window=96, z_in=2.5) 5x SL 4ATR TP 4ATR",
+          "train_score": 0.00396,
+          "fold_return_pct": -6.87
+        },
+        {
+          "from": "2026-02-23",
+          "to": "2026-03-02",
+          "spec": "mean_reversion(er_max=0.5, window=96, z_in=2.5) 5x SL 4ATR TP 4ATR",
+          "train_score": 0.00245,
+          "fold_return_pct": -15.01
+        },
+        {
+          "from": "2026-03-02",
+          "to": "2026-03-09",
+          "spec": "donchian(entry=48, exit_=24) 2x SL 2ATR TP 0ATR",
+          "train_score": 0.0018,
+          "fold_return_pct": -10.4
+        },
+        {
+          "from": "2026-03-09",
+          "to": "2026-03-16",
+          "spec": "mean_reversion(er_max=0.3, window=96, z_in=2.5) 2x SL 4ATR TP 0ATR",
+          "train_score": 0.00086,
+          "fold_return_pct": -5.0
+        },
+        {
+          "from": "2026-03-16",
+          "to": "2026-03-23",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-03-23",
+          "to": "2026-03-30",
+          "spec": "donchian(entry=48, exit_=24) 2x SL 4ATR TP 0ATR",
+          "train_score": 0.00162,
+          "fold_return_pct": -8.22
+        },
+        {
+          "from": "2026-03-30",
+          "to": "2026-04-06",
+          "spec": "donchian(entry=48, exit_=24) 2x SL 4ATR TP 0ATR",
+          "train_score": 0.00133,
+          "fold_return_pct": -15.16
+        },
+        {
+          "from": "2026-04-06",
+          "to": "2026-04-13",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-04-13",
+          "to": "2026-04-20",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-04-20",
+          "to": "2026-04-27",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-04-27",
+          "to": "2026-05-04",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-05-04",
+          "to": "2026-05-11",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-05-11",
+          "to": "2026-05-18",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-05-18",
+          "to": "2026-05-25",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-05-25",
+          "to": "2026-06-01",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-06-01",
+          "to": "2026-06-08",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-06-08",
+          "to": "2026-06-15",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-06-15",
+          "to": "2026-06-22",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-06-22",
+          "to": "2026-06-29",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-06-29",
+          "to": "2026-07-06",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-07-06",
+          "to": "2026-07-13",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-07-13",
+          "to": "2026-07-20",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-07-20",
+          "to": "2026-07-27",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-07-27",
+          "to": "2026-08-03",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-08-03",
+          "to": "2026-08-10",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-08-10",
+          "to": "2026-08-17",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-08-17",
+          "to": "2026-08-24",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-08-24",
+          "to": "2026-08-31",
+          "spec": "donchian(entry=192, exit_=96) 2x SL 2ATR TP 0ATR",
+          "train_score": 0.00206,
+          "fold_return_pct": -12.59
+        },
+        {
+          "from": "2026-08-31",
+          "to": "2026-09-07",
+          "spec": "donchian(entry=192, exit_=96) 2x SL 0ATR TP 0ATR",
+          "train_score": 0.00178,
+          "fold_return_pct": 4.92
+        },
+        {
+          "from": "2026-09-07",
+          "to": "2026-09-14",
+          "spec": "donchian(entry=192, exit_=96) 5x SL 2ATR TP 0ATR",
+          "train_score": 0.00227,
+          "fold_return_pct": -26.33
+        },
+        {
+          "from": "2026-09-14",
+          "to": "2026-09-21",
+          "spec": "donchian(entry=192, exit_=96) 2x SL 2ATR TP 0ATR",
+          "train_score": 0.0003,
+          "fold_return_pct": -10.14
+        },
+        {
+          "from": "2026-09-21",
+          "to": "2026-09-28",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-09-28",
+          "to": "2026-10-05",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-10-05",
+          "to": "2026-10-12",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-10-12",
+          "to": "2026-10-19",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        },
+        {
+          "from": "2026-10-19",
+          "to": "2026-10-19",
+          "spec": "flat (no positive edge in training window)",
+          "train_score": 0.0,
+          "fold_return_pct": 0.0
+        }
+      ]
+    }
+  }
+}
