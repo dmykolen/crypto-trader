@@ -69,7 +69,7 @@ class Spec:
     name: str
     params: tuple[tuple[str, float], ...]
     leverage: float
-    sl_atr: float  # stop distance in ATRs (0 = none)
+    sl_atr: float
     tp_atr: float
 
     def describe(self) -> str:

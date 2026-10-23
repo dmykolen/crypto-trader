@@ -21,7 +21,7 @@ from trader.integrations import binance
 
 KLINE_FIELDS = ["open_time", "open", "high", "low", "close", "volume", "quote_volume", "count", "taker_buy_volume"]
 _INT_FIELDS = {"open_time", "count"}
-ARCHIVE_LAG = timedelta(days=2)  # periods newer than this may be unpublished → REST, never negative-cached
+ARCHIVE_LAG = timedelta(days=2)
 _rest = binance.FuturesREST()
 
 

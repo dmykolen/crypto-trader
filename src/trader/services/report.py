@@ -17,8 +17,6 @@ from trader.services.engine import Costs
 
 log = logging.getLogger(__name__)
 
-# Robustness grid: (name, entry latency s, slippage multiplier, selection z). Pre-registered — the baseline is
-# the first row and is what the live trader uses; the others only show how fragile the result is.
 VARIANTS = [
     ("baseline", None, 1.0, playbooks.LCB_Z),
     ("entry latency 3 min", 180, 1.0, playbooks.LCB_Z),
@@ -40,9 +38,6 @@ def _now() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 
 
-# ---------------------------------------------------------------- event playbooks
-
-
 def event_study(samples: list[playbooks.Sample]) -> dict[str, dict]:
     """Average path after each event type, from our first possible fill (no strategy, no selection)."""
     marks = {"5m": 5, "15m": 15, "1h": 60, "4h": 240, "8h": 480, "23h": 1380}
@@ -54,7 +49,7 @@ def event_study(samples: list[playbooks.Sample]) -> dict[str, dict]:
         rows = defaultdict(list)
         for s in group:
             o, _, _, c = s.ohlc
-            pre = c[max(0, int(np.searchsorted(s.open_time, s.ts - 60_000, side="right")) - 1)]  # last bar closed before the notice
+            pre = c[max(0, int(np.searchsorted(s.open_time, s.ts - 60_000, side="right")) - 1)]
             entry = o[s.base]
             rows["jump_before_fill_pct"].append((entry / pre - 1) * 100)
             for name, m in marks.items():
@@ -390,12 +385,9 @@ def _event_markdown(doc: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
-# ---------------------------------------------------------------- per-token strategy selection
-
-
 def strategy_research(symbols: list[str], *, days: int, interval: str, train_days: int, fold_days: int) -> dict:
     """Walk-forward strategy selection for each symbol → reports/strategy_selection.*"""
-    from trader.services import selection  # heavy (LightGBM); only this report needs it
+    from trader.services import selection
 
     start, end = selection.default_window(days, train_days)
     studies = {}
@@ -432,9 +424,6 @@ def strategy_research(symbols: list[str], *, days: int, interval: str, train_day
         lines += _table(["fold", "spec chosen on the previous window", "fold return"], [[f"{f['from']} → {f['to']}", f["spec"], f"{f['fold_return_pct']}%"] for f in v["folds"]])
     _write("strategy_selection", doc, "\n".join(lines) + "\n")
     return doc
-
-
-# ---------------------------------------------------------------- AI review
 
 
 async def review(llm: LLM, name: str = "event_research") -> dict:

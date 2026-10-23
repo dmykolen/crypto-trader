@@ -14,19 +14,29 @@ from enum import StrEnum
 
 
 class EventType(StrEnum):
-    UPBIT_KRW_LISTING = "upbit_krw_listing"  # new KRW market on Upbit — the strongest retail-flow catalyst
-    UPBIT_LISTING = "upbit_listing"  # BTC/USDT-market only listing on Upbit
-    UPBIT_WARNING = "upbit_warning"  # 유의 종목 지정 — investment-warning designation (delisting risk)
-    UPBIT_DELISTING = "upbit_delisting"  # 거래지원 종료 — end of trading support
+    UPBIT_KRW_LISTING = "upbit_krw_listing"
+    UPBIT_LISTING = "upbit_listing"
+    UPBIT_WARNING = "upbit_warning"
+    UPBIT_DELISTING = "upbit_delisting"
     BINANCE_SPOT_LISTING = "binance_spot_listing"
     BINANCE_SPOT_DELISTING = "binance_spot_delisting"
     BINANCE_MONITORING_TAG = "binance_monitoring_tag"
     BINANCE_PERP_DELISTING = "binance_perp_delisting"
+    SHOCK_PUMP_1H = "shock_pump_1h"
+    SHOCK_DUMP_1H = "shock_dump_1h"
+    SHOCK_PUMP_4H = "shock_pump_4h"
+    SHOCK_DUMP_4H = "shock_dump_4h"
+    VOLUME_SPIKE = "volume_spike"
+    BREAKOUT_30D = "breakout_30d"
+    BREAKDOWN_30D = "breakdown_30d"
+    FUNDING_SQUEEZE = "funding_squeeze"
+    FUNDING_CROWDED = "funding_crowded"
+    NEW_PERP = "new_perp"
 
 
 @dataclass(frozen=True)
 class Notice:
-    source: str  # "upbit" | "binance"
+    source: str
     source_id: str
     title: str
     published_at: datetime
@@ -36,7 +46,7 @@ class Notice:
 @dataclass(frozen=True)
 class Event:
     type: EventType
-    token: str  # base asset, e.g. "WIF"
+    token: str
     notice: Notice
 
 
@@ -67,7 +77,7 @@ def _strip_updates(title: str) -> str:
 
 def _upbit(notice: Notice) -> list[Event]:
     title = _strip_updates(notice.title)
-    if "해제" in title or "연장" in title or "취소" in title:  # lifted / extended / cancelled: no new information
+    if "해제" in title or "연장" in title or "취소" in title:
         return []
     if "신규 거래지원" in title or "디지털 자산 추가" in title or "코인 추가" in title:
         head = title.split("안내")[0] if "신규 거래지원" in title else title
@@ -75,7 +85,7 @@ def _upbit(notice: Notice) -> list[Event]:
         markets = markets_part.group(1) if markets_part else ""
         krw = "KRW" in markets or "원화" in title
         if "마켓 신규 거래지원 안내" in title or "마켓 디지털 자산 추가 (" in title or "마켓 코인 추가 (" in title:
-            listed = re.search(r"\(([^()]*)\)\s*(?:\(|$)", title.split("마켓", 1)[1])  # "(BICO, BMT, …)" after the market list
+            listed = re.search(r"\(([^()]*)\)\s*(?:\(|$)", title.split("마켓", 1)[1])
             names = _tickers(listed.group(1)) if listed else []
         else:
             names = _tickers(head)

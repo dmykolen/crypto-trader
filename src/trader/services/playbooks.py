@@ -32,17 +32,17 @@ from trader.services.news import item_events
 
 log = logging.getLogger(__name__)
 
-HORIZON = timedelta(hours=24)  # every playbook trade is closed within 24h of the announcement
-MIN_HISTORY = 10  # events of a type needed before the walk-forward starts trading it
-LCB_Z = 1.0  # selection score: mean log-growth - z·stderr (pre-registered, not tuned on results)
-DEDUP = timedelta(days=3)  # the same token/type re-announced (updates, reposts) counts once
+HORIZON = timedelta(hours=24)
+MIN_HISTORY = 10
+LCB_Z = 1.0
+DEDUP = timedelta(days=3)
 
 
 @dataclass(frozen=True)
 class Playbook:
-    side: int  # 1 long, -1 short
-    delay_min: int  # wait after our first possible fill
-    stop: float  # stop-loss distance (fraction of entry), 0 = none
+    side: int
+    delay_min: int
+    stop: float
     take_profit: float
     trail: float
     hold_min: int
@@ -56,7 +56,7 @@ class Playbook:
         return ", ".join(parts)
 
 
-STOP_BEFORE_LIQ = 0.8  # structural rule: a stop must trigger within 80 % of the liquidation distance
+STOP_BEFORE_LIQ = 0.8
 
 
 def _grid() -> list[Playbook]:
@@ -84,12 +84,12 @@ class Sample:
     type: EventType
     token: str
     symbol: str
-    ts: int  # announcement time, ms
+    ts: int
     title: str
     open_time: np.ndarray
-    ohlc: np.ndarray  # (4, n)
+    ohlc: np.ndarray
     funding: np.ndarray
-    base: int  # first bar our reaction can fill at (open ≥ announcement + latency)
+    base: int
 
     @property
     def when(self) -> datetime:
@@ -98,7 +98,7 @@ class Sample:
 
 def notice_events(session: Session, types: set[EventType] | None = None, since: datetime | None = None) -> list[tuple[EventType, str, int, str]]:
     """(type, token, ts_ms, title) for every stored notice, deduplicated, oldest first."""
-    query = select(NewsItem).where(NewsItem.source.in_(["upbit", "binance"]))  # type: ignore[attr-defined]
+    query = select(NewsItem).where(NewsItem.source.in_(["upbit", "binance"]))
     if since:
         query = query.where(NewsItem.published_at >= since)
     found: dict[tuple[EventType, str], list[int]] = {}
@@ -129,7 +129,6 @@ def _load_sample(event: tuple[EventType, str, int, str], universe: set[str]) -> 
         return None
     open_time = bars.open_time.to_numpy()
     base = _first_fill(open_time, ts, settings.entry_latency_s)
-    # tradable only if the contract was already trading before the notice and the reaction window exists
     if len(open_time) == 0 or open_time[0] > ts - 30 * 60_000 or base >= len(open_time) - 60:
         return None
     ohlc = bars[["open", "high", "low", "close"]].to_numpy(np.float64).T.copy()
@@ -150,15 +149,18 @@ def load_samples(session: Session, types: set[EventType] | None = None, workers:
 class Outcomes:
     """Every playbook replayed on every event."""
 
-    r: np.ndarray  # (events, playbooks) return on margin, NaN when the playbook could not run
-    exits: np.ndarray  # (events, playbooks) exit bar of each trade, -1 when it could not run
-    bases: np.ndarray  # (events,) first bar a reaction could fill at
+    r: np.ndarray
+    exits: np.ndarray
+    bases: np.ndarray
 
 
 def evaluate(samples: list[Sample], grid: list[Playbook] = GRID, costs: Costs | None = None, latency_s: int | None = None) -> Outcomes:
     """Replay the whole grid on every event. `latency_s` overrides the reaction time the samples were loaded with."""
     costs = costs or Costs.for_events()
-    col = lambda f, t: np.array([getattr(p, f) for p in grid], dtype=t)  # noqa: E731
+
+    def col(field: str, dtype: type) -> np.ndarray:
+        return np.array([getattr(p, field) for p in grid], dtype=dtype)
+
     cols = (
         col("delay_min", np.int64),
         col("side", np.int64),
@@ -174,7 +176,7 @@ def evaluate(samples: list[Sample], grid: list[Playbook] = GRID, costs: Costs | 
         o, h, lo, c = samples[k].ohlc
         return event_grid(o, h, lo, c, samples[k].funding, bases[k], *cols, costs.fee, costs.slip, costs.stop_slip, costs.mmr)
 
-    with ThreadPoolExecutor() as pool:  # the numba kernel releases the GIL
+    with ThreadPoolExecutor() as pool:
         rows = list(pool.map(one, range(len(samples))))
     if not rows:
         return Outcomes(np.empty((0, len(grid))), np.empty((0, len(grid)), np.int64), bases)
@@ -201,20 +203,28 @@ class Decision:
     type: str
     token: str
     symbol: str
-    time: str  # announcement
+    time: str
     title: str
-    history: int  # events of this type known when the notice appeared
-    playbook: dict | None  # None → skipped
+    history: int
+    playbook: dict | None
     score: float | None
-    ret: float | None  # return on margin
-    pnl_on_1000: float | None  # full $1000 balance as isolated margin
+    ret: float | None
+    pnl_on_1000: float | None
     entry_time: str | None = None
-    exit_time: str | None = None  # close of the exit bar
+    exit_time: str | None = None
 
     @property
     def notice(self) -> str:
         """One announcement can name several tokens; their trades are one bet (exposure cap, clustered stats)."""
         return f"{self.type}@{self.time}"
+
+
+def _select_running(total: np.ndarray, total2: np.ndarray, n: int, z: float) -> tuple[int | None, float]:
+    mean = total / n
+    var = np.maximum(total2 - n * mean**2, 0.0) / (n - 1)
+    score = mean - z * np.sqrt(var / n)
+    best = int(np.argmax(score))
+    return (best if score[best] > 0 else None), float(score[best])
 
 
 def walk_forward(samples: list[Sample], out: Outcomes, grid: list[Playbook] = GRID, z: float = LCB_Z) -> list[Decision]:
@@ -224,16 +234,18 @@ def walk_forward(samples: list[Sample], out: Outcomes, grid: list[Playbook] = GR
         idx = [i for i, s in enumerate(samples) if s.type == etype]
         ts = np.array([samples[i].ts for i in idx])
         growth = _growth(out.r[idx])
+        zero = np.zeros((1, growth.shape[1]))
+        total, total2 = np.vstack([zero, np.cumsum(growth, axis=0)]), np.vstack([zero, np.cumsum(growth**2, axis=0)])
         for k, i in enumerate(idx):
             s = samples[i]
-            known = int(np.searchsorted(ts, ts[k] - horizon_ms, side="right"))  # outcomes finished before this notice
-            best, score = _select(growth[:known], z) if known >= MIN_HISTORY else (None, None)
+            known = int(np.searchsorted(ts, ts[k] - horizon_ms, side="right"))
+            best, score = _select_running(total[known], total2[known], known, z) if known >= MIN_HISTORY else (None, None)
             ret = None if best is None or np.isnan(out.r[i, best]) else float(out.r[i, best])
             d = Decision(etype.value, s.token, s.symbol, _iso(s.ts), s.title, known, asdict(grid[best]) if best is not None else None, score, ret, None)
             if ret is not None and best is not None:
                 d.pnl_on_1000 = round(1000 * ret, 2)
                 d.entry_time = _iso(int(s.open_time[out.bases[i] + grid[best].delay_min]))
-                d.exit_time = _iso(int(s.open_time[out.exits[i, best]]) + 60_000)
+                d.exit_time = _iso(int(s.open_time[out.exits[i, best]] + s.open_time[1] - s.open_time[0]))
             decisions.append(d)
     return sorted(decisions, key=lambda d: d.time)
 
@@ -243,9 +255,9 @@ class AccountRun:
     """The out-of-sample trades replayed as ONE account: overlapping trades share the balance."""
 
     policy: str
-    trades: list[dict]  # taken trades with their $ result
-    skipped: int  # signals the account could not take (no free margin, symbol already open, too many positions)
-    daily: dict[str, float]  # UTC day → equity at the end of the day (realized)
+    trades: list[dict]
+    skipped: int
+    daily: dict[str, float]
     summary: dict
 
 
@@ -277,7 +289,7 @@ def replay_account(
     for d in trades:
         settle(d.entry_time or "")
         equity = cash + sum(p["margin"] for p in open_)
-        if equity < 1.0:  # the account is dead — nothing left to trade with
+        if equity < 1.0:
             skipped += 1
             continue
         busy = any(p["symbol"] == d.symbol for p in open_)
@@ -302,7 +314,7 @@ def replay_account(
         equity += by_day[day]
         daily[day] = round(equity, 2)
     curve = np.array([capital, *daily.values()])
-    big = [t for t in taken if t["pnl"] >= 0.1 * t["equity_at_entry"]]  # ≥ $100 per $1000 of balance, inside 24h
+    big = [t for t in taken if t["pnl"] >= 0.1 * t["equity_at_entry"]]
     summary = {
         "policy": policy,
         "final_equity": round(cash, 2),

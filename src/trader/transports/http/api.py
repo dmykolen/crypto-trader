@@ -87,7 +87,7 @@ def get_forecast(symbol: str, interval: Interval = "1h", days: Annotated[int, Qu
 class Headline(BaseModel):
     title: str
     summary: str | None = None
-    source: str | None = None  # "upbit" / "binance" enable the rule-based notice classifier
+    source: str | None = None
 
 
 @router.post("/analyze")

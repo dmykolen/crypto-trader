@@ -27,9 +27,9 @@ LCB_Z = 1.0
 class TokenStudy:
     symbol: str
     interval: str
-    oos: BacktestResult  # stitched out-of-sample equity
-    folds: list[dict]  # spec chosen per fold and its OOS result
-    current: dict  # spec selected on the most recent window (for live use)
+    oos: BacktestResult
+    folds: list[dict]
+    current: dict
     regime: dict
 
 
@@ -64,7 +64,7 @@ def study(
     bars, funding = market_data.load_bars(symbol, interval, start, end)
     if len(bars) < 2000:
         raise ValueError(f"{symbol}: not enough {interval} bars ({len(bars)})")
-    atr_pct = (fx.atr(bars, 14) / bars.close).shift(1).bfill().to_numpy()  # stop distance known at the fill
+    atr_pct = (fx.atr(bars, 14) / bars.close).shift(1).bfill().to_numpy()
     specs = strategies.specs()
     targets = {s: strategies.signal(s, bars) for s in {strategies.Spec(s.name, s.params, 1, 0, 0) for s in specs}}
     if with_ml:
@@ -75,7 +75,6 @@ def study(
             targets[base] = forecast.ml_signal(pred, th)
             specs += [strategies.Spec(base.name, base.params, lev, sl, tp) for lev, sl, tp in strategies.RISK_GRID]
     results = {s: _run(s, bars, funding, targets[strategies.Spec(s.name, s.params, 1, 0, 0)], atr_pct, margin_frac) for s in specs}
-    # per-bar return of every spec, so a fold can be stitched from whichever spec was selected
     idx = results[specs[0]].equity.index
     returns = {s: r.equity.pct_change().fillna(0.0).to_numpy() for s, r in results.items()}
 

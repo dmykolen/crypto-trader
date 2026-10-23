@@ -122,10 +122,10 @@ def test_risk_rails():
     async def scenario():
         trader = make_trader()
         assert await open_(trader, "WIFUSDT") is not None
-        assert await open_(trader, "WIFUSDT") is None  # one position per symbol
+        assert await open_(trader, "WIFUSDT") is None
         for symbol in SYMBOLS[1:5]:
             assert await open_(trader, symbol) is not None
-        assert await open_(trader, SYMBOLS[5]) is None  # MAX_OPEN_POSITIONS
+        assert await open_(trader, SYMBOLS[5]) is None
 
     asyncio.run(scenario())
 
@@ -135,7 +135,7 @@ def test_daily_loss_limit_blocks_new_positions():
         trader = make_trader()
         await open_(trader, leverage=10.0)
         trader.broker.prices["WIFUSDT"] = 0.85
-        await trader.monitor()  # liquidated: -200, more than 20 % of the 800 left
+        await trader.monitor()
         return await open_(trader, "AAAUSDT")
 
     assert asyncio.run(scenario()) is None
@@ -152,8 +152,8 @@ def test_one_announcement_is_capped_as_one_bet():
         return first, second, third, other
 
     first, second, third, other = asyncio.run(scenario())
-    assert (first.margin, second.margin) == (pytest.approx(200.0), pytest.approx(100.0))  # 20 %, then what is left of the 30 % cap
-    assert third is None and other.margin == pytest.approx(200.0)  # a different announcement has its own cap
+    assert (first.margin, second.margin) == (pytest.approx(200.0), pytest.approx(100.0))
+    assert third is None and other.margin == pytest.approx(200.0)
 
 
 def test_event_enters_with_its_playbook_at_the_backtested_time(monkeypatch):
@@ -169,7 +169,7 @@ def test_event_enters_with_its_playbook_at_the_backtested_time(monkeypatch):
         await task
         stale = Notice("binance", "n2", "Binance Will Delist WIF on 2026-11-01", datetime.now(UTC) - timedelta(hours=2))
         assert await trader.on_event(Event(EventType.BINANCE_SPOT_DELISTING, "WIF", stale)) is None
-        assert await trader.on_event(Event(EventType.UPBIT_WARNING, "WIF", fresh)) is None  # no playbook for it
+        assert await trader.on_event(Event(EventType.UPBIT_WARNING, "WIF", fresh)) is None
 
     asyncio.run(scenario())
     with Session(engine) as session:

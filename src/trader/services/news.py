@@ -43,16 +43,13 @@ def store_new(session: Session, items: list[NewsItem]) -> list[NewsItem]:
     """Insert the items not stored yet; returns those (the genuinely new ones)."""
     if not items:
         return []
-    known = set(session.exec(select(NewsItem.id).where(NewsItem.id.in_([i.id for i in items]))).all())  # type: ignore[attr-defined]
+    known = set(session.exec(select(NewsItem.id).where(NewsItem.id.in_([i.id for i in items]))).all())
     fresh = list({i.id: i for i in items if i.id not in known}.values())
     session.add_all(fresh)
     session.commit()
     for item in fresh:
         news_items_total.labels(item.source).inc()
     return fresh
-
-
-# ---------------------------------------------------------------- history
 
 
 async def backfill(session: Session, *, binance_pages: int = 100, page_size: int = 50) -> dict[str, int]:
@@ -78,21 +75,18 @@ async def backfill(session: Session, *, binance_pages: int = 100, page_size: int
                     await asyncio.sleep(2.0)
                     if len(batch) < page_size:
                         break
-            except (RuntimeError, httpx.HTTPError) as exc:  # keep what is stored; the next catalog may still work
+            except (RuntimeError, httpx.HTTPError) as exc:
                 log.warning("binance %s backfill stopped at page %d (%s) — run the backfill again to continue", name, page, exc)
             counts[f"binance:{name}"] = stored
     log.info("backfill stored %s", counts)
     return counts
 
 
-# ---------------------------------------------------------------- live
-
-
 async def _timed(source: str, coro):
     with news_poll_seconds.labels(source).time():
         try:
             return await coro
-        except Exception as exc:  # one flaky source must not stop the others
+        except Exception as exc:
             log.warning("news source %s failed: %s", source, exc)
             return []
 

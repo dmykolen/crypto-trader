@@ -18,7 +18,7 @@ def test_backfill_keeps_stored_pages_when_a_catalog_keeps_failing(monkeypatch):
         return Notice(source, f"backfill-{i}", f"{source} notice {i}", datetime(2026, 1, 1, tzinfo=UTC))
 
     async def upbit_notices(client, page, per_page=20):
-        return [page], 2  # two pages with one notice each
+        return [page], 2
 
     async def announcements(client, catalog, page, page_size=20):
         if catalog == 49 and page == 2:
@@ -42,5 +42,5 @@ def test_backfill_keeps_stored_pages_when_a_catalog_keeps_failing(monkeypatch):
         again = asyncio.run(news.backfill(session, page_size=2))
         session.exec(delete(NewsItem).where(mine))
         session.commit()
-    assert first == {"upbit": 2, "binance:listing": 1, "binance:delisting": 1, "binance:news": 2}  # page 1 of `news` survived the failure
-    assert again == dict.fromkeys(first, 0)  # a re-run skips everything already stored
+    assert first == {"upbit": 2, "binance:listing": 1, "binance:delisting": 1, "binance:news": 2}
+    assert again == dict.fromkeys(first, 0)

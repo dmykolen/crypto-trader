@@ -27,10 +27,10 @@ class Broker(Protocol):
     mode: str
 
     async def price(self, symbol: str) -> float: ...
-    async def equity(self) -> float | None: ...  # None → derive it from the trade journal (paper)
+    async def equity(self) -> float | None: ...
     async def open(self, symbol: str, side: int, qty: float, leverage: float) -> Fill: ...
     async def protect(self, symbol: str, side: int, qty: float, stop: float) -> None: ...
-    async def close(self, symbol: str, side: int, qty: float) -> Fill | None: ...  # None → already flat on the exchange
+    async def close(self, symbol: str, side: int, qty: float) -> Fill | None: ...
     async def aclose(self) -> None: ...
 
 
@@ -54,7 +54,7 @@ class PaperBroker:
         return await self._fill(symbol, side, qty)
 
     async def protect(self, symbol: str, side: int, qty: float, stop: float) -> None:
-        return None  # the trader's monitor enforces paper stops
+        return None
 
     async def close(self, symbol: str, side: int, qty: float) -> Fill | None:
         return await self._fill(symbol, -side, qty)
@@ -95,7 +95,7 @@ class LiveBroker:
         reference = await self.price(symbol)
         try:
             return _filled(await self._ex.market_order(symbol, -side, qty, reduce_only=True), reference, qty)
-        except InvalidOrder:  # reduce-only rejected: the exchange stop or a liquidation already closed it
+        except InvalidOrder:
             return None
 
     async def aclose(self) -> None:

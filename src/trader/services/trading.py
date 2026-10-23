@@ -17,6 +17,8 @@ of equity, leverage ≤ MAX_LEVERAGE, no new positions once the UTC day's realiz
 
 import asyncio
 import logging
+import re
+import time
 from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
@@ -27,16 +29,16 @@ from sqlmodel import Session, select
 from trader.ai import news_analyst
 from trader.core.config import settings
 from trader.core.db import engine
-from trader.core.metrics import news_events_total, open_positions, orders_total, trades_closed_total
-from trader.integrations import binance
+from trader.core.metrics import news_events_total, notice_latency_seconds, open_positions, orders_total, trades_closed_total
+from trader.integrations import binance, binance_ws, upbit
 from trader.integrations.llm import LLM
 from trader.models import NewsItem, Trade
-from trader.services import market_data, news, playbooks
+from trader.services import fast, market_data, news, playbooks
 from trader.services.broker import Broker, LiveBroker, PaperBroker
-from trader.services.events import Event
+from trader.services.events import Event, Notice, binance_notice, classify, upbit_notice
 
 log = logging.getLogger(__name__)
-MEDIA_MAX_AGE = timedelta(hours=6)  # older RSS items are stored, not triaged
+MEDIA_MAX_AGE = timedelta(hours=6)
 LLM_TRIAGE_PER_POLL = 20
 
 
@@ -81,24 +83,113 @@ class Trader:
         self.mode = broker.mode
         self.llm = llm
         self.playbooks = playbooks.live_playbooks()
+        self.fast = fast.live() if settings.fast_trading else {}
         self._rest = rest or binance.FuturesREST()
         self._tradable: set[str] = set()
         self._tradable_at = datetime.min.replace(tzinfo=UTC)
         self._lock = asyncio.Lock()
         self._tasks: set[asyncio.Task] = set()
-
-    # ---------------------------------------------------------------- loops
+        self._seen: dict[str, float] = {}
 
     async def run(self, stop: asyncio.Event) -> None:
         log.info("trader started: mode=%s llm=%s playbooks=%s", self.mode, self.llm is not None, {k.value: v.describe() for k, v in self.playbooks.items()})
+        log.info("fast playbooks: %s", {k.value: [f"<={lat:g}s {pb.describe()}" for lat, pb in v] for k, v in self.fast.items()})
+        monitor_every = min(settings.monitor_seconds, settings.fast_monitor_seconds) if self.fast else settings.monitor_seconds
         async with httpx.AsyncClient(timeout=20) as client:
-            await asyncio.gather(
+            loops = [
                 self._every(stop, settings.poll_seconds, self.poll_notices, client),
                 self._every(stop, settings.rss_poll_seconds, self.poll_media, client),
-                self._every(stop, settings.monitor_seconds, self.monitor),
-            )
+                self._every(stop, monitor_every, self.monitor),
+            ]
+            if self.fast:
+                await self.tradable()
+                loops.append(self.stream_binance(stop))
+                if settings.fast_upbit_poll_s > 0:
+                    loops.append(self._every(stop, settings.fast_upbit_poll_s, self.poll_upbit_fast, client))
+                if settings.binance_api_key is None and settings.fast_binance_poll_s > 0:
+                    loops.append(self._every(stop, settings.fast_binance_poll_s, self.poll_binance_fast, client))
+            await asyncio.gather(*loops)
         for task in self._tasks:
             task.cancel()
+
+    def _spawn(self, coro: Awaitable) -> asyncio.Task:
+        task = asyncio.ensure_future(coro)
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
+        return task
+
+    async def stream_binance(self, stop: asyncio.Event) -> None:
+        if settings.binance_api_key is None or settings.binance_api_secret is None:
+            log.warning("BINANCE_API_KEY/BINANCE_API_SECRET not set: the Binance announcement stream (fast path) is off")
+            return
+        stream = binance_ws.announcements(settings.binance_api_key.get_secret_value(), settings.binance_api_secret.get_secret_value())
+        async for notice, received, _ in stream:
+            if stop.is_set():
+                return
+            await self.on_fast_notice(notice, received)
+
+    async def poll_upbit_fast(self, client: httpx.AsyncClient) -> None:
+        batch, _ = await upbit.notices(client, 1, per_page=5)
+        received = time.time()
+        for raw in batch:
+            await self.on_fast_notice(upbit_notice(raw), received)
+
+    async def poll_binance_fast(self, client: httpx.AsyncClient) -> None:
+        for catalog in binance.CATALOGS:
+            batch = await binance.announcements(client, catalog, 1, 5)
+            received = time.time()
+            for raw in batch:
+                await self.on_fast_notice(binance_notice(raw), received)
+
+    @staticmethod
+    def _title_key(title: str) -> str:
+        return re.sub(r"\W+", " ", title.lower()).strip()
+
+    async def on_fast_notice(self, notice: Notice, received: float) -> list[Trade]:
+        key = self._title_key(notice.title)
+        if key in self._seen:
+            return []
+        self._seen[key] = received
+        latency = received - notice.published_at.timestamp()
+        notice_latency_seconds.labels(notice.source).observe(max(latency, 0.0))
+        with Session(engine) as session:
+            stored = news.store_new(session, [news.to_item(notice)])
+        news_id = stored[0].id if stored else f"{notice.source}:{notice.source_id}"
+        trades = []
+        for event in classify(notice):
+            pb = fast.for_latency(self.fast.get(event.type, []), latency)
+            log.info("fast %s %s seen %.2fs after publication: %s", event.type.value, event.token, latency, notice.title)
+            if pb is None or latency > settings.fast_max_latency_s:
+                continue
+            symbol = market_data.perp_symbol(event.token, await self.tradable())
+            if symbol is None:
+                continue
+            trade = await self.open_position(
+                symbol,
+                pb.side,
+                pb.leverage,
+                stop=pb.stop,
+                take_profit=pb.take_profit,
+                trail=0.0,
+                hold=timedelta(seconds=pb.hold_s),
+                trigger=f"fast {event.type.value}: {pb.describe()} ({latency:.2f}s)",
+                news_id=news_id,
+            )
+            if trade is not None:
+                trades.append(trade)
+                self._spawn(self._exit_at(trade.id, trade.exit_due))
+        return trades
+
+    async def _exit_at(self, trade_id: int | None, due: datetime) -> None:
+        await asyncio.sleep(max(0.0, (due - now()).total_seconds()))
+        async with self._lock:
+            with Session(engine) as session:
+                t = session.get(Trade, trade_id)
+                if t is None or t.status != "open":
+                    return
+                await self._close(t, await self.broker.price(t.symbol), "time")
+                session.add(t)
+                session.commit()
 
     @staticmethod
     async def _every(stop: asyncio.Event, seconds: float, fn: Callable[..., Awaitable[None]], *args) -> None:
@@ -117,8 +208,6 @@ class Trader:
             self._tradable = {s["symbol"] for s in info["symbols"] if s.get("status") == "TRADING" and s.get("contractType") == "PERPETUAL"}
             self._tradable_at = now()
         return self._tradable
-
-    # ---------------------------------------------------------------- exchange notices → playbooks
 
     async def poll_notices(self, client: httpx.AsyncClient) -> None:
         items = await news.fetch_exchange_notices(client)
@@ -153,8 +242,6 @@ class Trader:
             )
         except Exception:
             log.exception("could not open %s (%s)", symbol, trigger)
-
-    # ---------------------------------------------------------------- media news → Claude
 
     async def poll_media(self, client: httpx.AsyncClient) -> None:
         items = await news.fetch_media(client)
@@ -191,11 +278,16 @@ class Trader:
             return
         move = hit.expected_move_pct / 100
         await self.open_position(
-            symbol, 1 if hit.direction == "bullish" else -1, 2.0, stop=min(max(move / 2, 0.02), 0.1), take_profit=move, trail=0.0,
-            hold=timedelta(minutes=min(max(hit.horizon_minutes, 30), 1440)), trigger=f"llm:{(item.analysis or {}).get('category')}", news_id=item.id,
-        )  # fmt: skip
-
-    # ---------------------------------------------------------------- positions
+            symbol,
+            1 if hit.direction == "bullish" else -1,
+            2.0,
+            stop=min(max(move / 2, 0.02), 0.1),
+            take_profit=move,
+            trail=0.0,
+            hold=timedelta(minutes=min(max(hit.horizon_minutes, 30), 1440)),
+            trigger=f"llm:{(item.analysis or {}).get('category')}",
+            news_id=item.id,
+        )
 
     def _open_trades(self, session: Session) -> list[Trade]:
         return list(session.exec(select(Trade).where(Trade.mode == self.mode, Trade.status == "open")).all())
@@ -209,7 +301,7 @@ class Trader:
 
     def _realized_today(self, session: Session) -> float:
         midnight = now().replace(hour=0, minute=0, second=0, microsecond=0)
-        rows = session.exec(select(Trade.pnl).where(Trade.mode == self.mode, Trade.status == "closed", Trade.exit_time >= midnight)).all()  # type: ignore[operator]
+        rows = session.exec(select(Trade.pnl).where(Trade.mode == self.mode, Trade.status == "closed", Trade.exit_time >= midnight)).all()
         return sum(p or 0.0 for p in rows)
 
     def _blocked(self, session: Session, active: list[Trade], symbol: str, equity: float) -> str | None:
@@ -246,10 +338,22 @@ class Trader:
                 leverage = min(float(leverage), float(settings.max_leverage))
                 fill = await self.broker.open(symbol, side, margin * leverage / await self.broker.price(symbol), leverage)
                 trade = Trade(
-                    mode=self.mode, symbol=symbol, side=side, leverage=leverage, margin=margin, quantity=fill.qty, entry_price=fill.price,
-                    stop_price=fill.price * (1 - side * stop) if stop else None, take_profit_price=fill.price * (1 + side * take_profit) if take_profit else None,
-                    trail=trail, best_price=fill.price, exit_due=now() + hold, trigger=trigger, news_id=news_id, fees=fill.fee,
-                )  # fmt: skip
+                    mode=self.mode,
+                    symbol=symbol,
+                    side=side,
+                    leverage=leverage,
+                    margin=margin,
+                    quantity=fill.qty,
+                    entry_price=fill.price,
+                    stop_price=fill.price * (1 - side * stop) if stop else None,
+                    take_profit_price=fill.price * (1 + side * take_profit) if take_profit else None,
+                    trail=trail,
+                    best_price=fill.price,
+                    exit_due=now() + hold,
+                    trigger=trigger,
+                    news_id=news_id,
+                    fees=fill.fee,
+                )
                 if trade.stop_price is not None:
                     await self.broker.protect(symbol, side, fill.qty, trade.stop_price)
                 session.add(trade)
@@ -282,7 +386,7 @@ class Trader:
             exit_price, fee, gross = liquidation_price(t), 0.0, -t.margin
         else:
             fill = await self.broker.close(t.symbol, t.side, t.quantity)
-            if fill is None:  # closed on the exchange (its stop or a liquidation): book it at the last price
+            if fill is None:
                 fill, reason = type("F", (), {"price": price, "fee": 0.0})(), f"{reason}:exchange"
             exit_price, fee = fill.price, fill.fee
             gross = max(t.side * t.quantity * (exit_price - t.entry_price), -t.margin)

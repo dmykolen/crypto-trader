@@ -31,7 +31,7 @@ def base_asset(symbol: str) -> str:
 def forecast_symbol(symbol: str, interval: str = "1h", days: int = 365) -> dict:
     """Regime + LightGBM forecast for every horizon ≥ one bar, each with its out-of-sample AUC / hit-rate."""
     step = INTERVAL_MS[interval]
-    end = market_data.from_ms(int(datetime.now(UTC).timestamp() * 1000) // step * step)  # only completed bars
+    end = market_data.from_ms(int(datetime.now(UTC).timestamp() * 1000) // step * step)
     bars, funding = market_data.load_bars(symbol, interval, end - timedelta(days=days), end)
     if len(bars) < 1000:
         raise ValueError(f"{symbol}: only {len(bars)} {interval} bars of history")

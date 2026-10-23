@@ -33,10 +33,10 @@ PARAMS = {
 @dataclass
 class OOSPrediction:
     horizon: int
-    prob_up: pd.Series  # out-of-sample P(up over `horizon` bars), NaN where no model existed yet
-    exp_ret: pd.Series  # out-of-sample expected log-return
-    auc: float | None  # AUC of the out-of-sample probabilities
-    hit_rate: float | None  # directional accuracy where |p - 0.5| > 0.05
+    prob_up: pd.Series
+    exp_ret: pd.Series
+    auc: float | None
+    hit_rate: float | None
 
 
 def _labels(close: pd.Series, horizon: int) -> pd.Series:
@@ -65,7 +65,7 @@ def walk_forward(bars: pd.DataFrame, funding: np.ndarray, horizon: int, *, train
     prob = pd.Series(np.nan, index=bars.index)
     exp = pd.Series(np.nan, index=bars.index)
     for t0 in range(train_bars, len(bars), step_bars):
-        fit_end = t0 - horizon  # labels of rows < fit_end are known at t0
+        fit_end = t0 - horizon
         window = slice(max(0, fit_end - train_bars), fit_end)
         ok = y.iloc[window].notna() & usable.iloc[window]
         if ok.sum() < 500:

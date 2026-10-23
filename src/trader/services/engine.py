@@ -57,21 +57,20 @@ def _walk(o, h, lo, c, fr, i, side, sl, tp, trail, max_bars, lev, fee, slip, sto
     """
     n = len(o)
     entry = o[i] * (1.0 + side * slip)
-    ret = -fee * lev  # entry fee
-    margin = 1.0  # isolated margin left, in units of the initial margin (funding drains it)
+    ret = -fee * lev
+    margin = 1.0
     stop = entry * (1.0 - side * sl) if sl > 0 else (0.0 if side > 0 else np.inf)
     take = entry * (1.0 + side * tp) if tp > 0 else (np.inf if side > 0 else 0.0)
     best = entry
     for j in range(i, n):
-        if j > i and target[j] != side:  # strategy exit / reversal, filled at this open
+        if j > i and target[j] != side:
             px = o[j] * (1.0 - side * slip)
             mtm[j] = ret + side * lev * (px / entry - 1.0) - fee * lev * px / entry
             return j, mtm[j], (REVERSAL if target[j] == -side else SIGNAL)
-        if fr[j] != 0.0:  # settlement at (or inside) this bar while the position is open
+        if fr[j] != 0.0:
             pay = side * lev * (o[j] / entry) * fr[j]
             ret -= pay
             margin -= pay
-        # liquidation price for the margin left: margin + side·lev·(P/E - 1) = mmr·lev·P/E
         liq = entry * (lev - side * margin) / (lev * (1.0 - side * mmr))
         if trail > 0:
             trail_stop = best * (1.0 - side * trail)
@@ -90,7 +89,7 @@ def _walk(o, h, lo, c, fr, i, side, sl, tp, trail, max_bars, lev, fee, slip, sto
             mtm[j] = max(ret + side * lev * (px / entry - 1.0) - fee * lev * px / entry, -1.0 - fee * lev)
             return j, mtm[j], STOP
         if (favorable >= take) if side > 0 else (favorable <= take):
-            px = take * (1.0 - side * slip)  # never better than the TP level, even when the bar gaps through it
+            px = take * (1.0 - side * slip)
             mtm[j] = ret + side * lev * (px / entry - 1.0) - fee * lev * px / entry
             return j, mtm[j], TAKE_PROFIT
         best = max(best, h[j]) if side > 0 else min(best, lo[j])
@@ -137,7 +136,7 @@ def _simulate(o, h, lo, c, fr, target, sl, tp, trail, max_bars, lev, margin_frac
             equity[j:] = 0.0
             break
         if reason in (REVERSAL, SIGNAL):
-            i = j  # the open of bar j already belongs to the next decision
+            i = j
         else:
             blocked = side
             i = j + 1
@@ -168,7 +167,7 @@ def event_grid(o, h, lo, c, fr, base, delays, sides, sls, tps, trails, holds, le
 
 @dataclass
 class BacktestResult:
-    equity: pd.Series  # account equity per bar close, starting at `capital`
+    equity: pd.Series
     trades: pd.DataFrame
     capital: float
     metrics: dict = field(default_factory=dict)
@@ -197,10 +196,23 @@ def backtest(
     n = len(bars)
     o, h, lo, c = (bars[col].to_numpy(np.float64) for col in ("open", "high", "low", "close"))
     equity, trades = _simulate(
-        o, h, lo, c, np.asarray(funding, np.float64), np.asarray(target, np.int64),
-        _per_bar(sl, n), _per_bar(tp, n), _per_bar(trail, n), _per_bar(max_bars, n, np.int64),
-        float(leverage), float(margin_frac), costs.fee, costs.slip, costs.stop_slip, costs.mmr,
-    )  # fmt: skip
+        o,
+        h,
+        lo,
+        c,
+        np.asarray(funding, np.float64),
+        np.asarray(target, np.int64),
+        _per_bar(sl, n),
+        _per_bar(tp, n),
+        _per_bar(trail, n),
+        _per_bar(max_bars, n, np.int64),
+        float(leverage),
+        float(margin_frac),
+        costs.fee,
+        costs.slip,
+        costs.stop_slip,
+        costs.mmr,
+    )
     index = pd.to_datetime(bars.open_time.to_numpy(), unit="ms", utc=True)
     curve = pd.Series(equity * capital, index=index, name="equity")
     t = pd.DataFrame(trades, columns=["entry_bar", "exit_bar", "side", "ret", "reason"]).astype({"entry_bar": int, "exit_bar": int, "side": int, "reason": int})

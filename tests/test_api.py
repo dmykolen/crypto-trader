@@ -35,10 +35,13 @@ def test_health_ready_metrics(client):
 
 def test_news_journal_filters_tradable_events(client):
     with Session(engine) as session:
-        store_new(session, [
-            to_item(Notice("upbit", "t1", "에이피아이쓰리(API3) KRW 마켓 디지털 자산 추가", datetime.now(UTC))),
-            to_item(Notice("binance", "t2", "Introducing a new Launchpool project", datetime.now(UTC))),
-        ])  # fmt: skip
+        store_new(
+            session,
+            [
+                to_item(Notice("upbit", "t1", "에이피아이쓰리(API3) KRW 마켓 디지털 자산 추가", datetime.now(UTC))),
+                to_item(Notice("binance", "t2", "Introducing a new Launchpool project", datetime.now(UTC))),
+            ],
+        )
     rows = client.get("/api/v1/news", params={"events_only": True}).json()
     assert [r["id"] for r in rows] == ["upbit:t1"]
     assert rows[0]["events"] == [{"type": "upbit_krw_listing", "token": "API3"}]

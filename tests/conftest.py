@@ -21,6 +21,6 @@ os.environ.update({
 def client():
     from trader.main import app
 
-    with TestClient(app) as client:  # the `with` form runs lifespan
+    with TestClient(app) as client:
         yield client
     app.dependency_overrides.clear()

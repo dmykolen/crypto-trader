@@ -21,7 +21,6 @@ def run(rows, target, funding=None, **kw):
 
 
 def test_long_fills_next_open_and_exits_on_signal():
-    # enter at open of bar 0 (100), exit at open of bar 2 (110): +10 % x 3x = +30 % of margin
     r = run([(100, 105, 99, 104), (104, 111, 103, 110), (110, 112, 109, 111)], [1, 1, 0], leverage=3)
     t = r.trades.iloc[0]
     assert (t.entry_bar, t.exit_bar, t.reason) == (0, 2, "signal")
@@ -49,7 +48,6 @@ def test_gap_through_stop_fills_at_open():
 
 
 def test_short_liquidation_loses_the_whole_margin():
-    # 10x short: liquidated once price rises ~10 % (mmr=0) → margin gone, not more
     r = run([(100, 101, 99, 100), (100, 115, 99, 112)], [-1, -1], leverage=10)
     t = r.trades.iloc[0]
     assert t.reason == "liquidation" and t.ret == pytest.approx(-1.0)
@@ -57,7 +55,6 @@ def test_short_liquidation_loses_the_whole_margin():
 
 
 def test_maintenance_margin_liquidates_earlier():
-    # 5x long, mmr 2 %: liq price = 100·(5-1)/(5·0.98) ≈ 81.63 → a low of 82 survives, 81.5 does not
     costs = Costs(fee=0.0, slip=0.0, stop_slip=0.0, mmr=0.02)
     survive = run([(100, 100, 100, 100), (100, 100, 82, 90), (90, 90, 90, 90)], [1, 1, 0], leverage=5, costs=costs)
     assert survive.trades.reason.iloc[0] == "signal"
@@ -74,8 +71,7 @@ def test_take_profit_and_trailing_stop():
     tp = run([(100, 101, 99, 100), (100, 112, 99, 111)], [1, 1], leverage=2, tp=0.1)
     assert tp.trades.reason.iloc[0] == "take_profit" and tp.trades.ret.iloc[0] == pytest.approx(0.2)
     gap = run([(100, 101, 99, 100), (130, 131, 129, 130)], [1, 1], leverage=2, tp=0.1)
-    assert gap.trades.ret.iloc[0] == pytest.approx(0.2)  # a gap through the TP fills at the TP level, not the windfall open
-    # trail 5 %: best completed high 120 → stop 114 hit on bar 2
+    assert gap.trades.ret.iloc[0] == pytest.approx(0.2)
     tr = run([(100, 101, 99, 100), (100, 120, 100, 119), (119, 119, 110, 112)], [1, 1, 1], leverage=1, trail=0.05)
     assert tr.trades.reason.iloc[0] == "stop" and tr.trades.ret.iloc[0] == pytest.approx(0.14)
 
@@ -101,13 +97,27 @@ def test_event_grid_matches_single_walk():
     df = bars([(100, 100, 100, 100), (100, 101, 95, 96), (96, 97, 90, 91), (91, 92, 88, 90)])
     o, h, lo, c = (df[k].to_numpy(float) for k in ("open", "high", "low", "close"))
     out, exits = event_grid(
-        o, h, lo, c, np.zeros(4), 1,
-        np.array([0, 1, 5]), np.array([-1, -1, -1]), np.array([0.2, 0.2, 0.2]), np.zeros(3), np.zeros(3),
-        np.array([2, 2, 2]), np.array([2.0, 2.0, 2.0]), 0.0, 0.0, 0.0, 0.0,
-    )  # fmt: skip
-    assert out[0] == pytest.approx(-2 * (91 / 100 - 1))  # short from open of bar 1 to close of bar 2
+        o,
+        h,
+        lo,
+        c,
+        np.zeros(4),
+        1,
+        np.array([0, 1, 5]),
+        np.array([-1, -1, -1]),
+        np.array([0.2, 0.2, 0.2]),
+        np.zeros(3),
+        np.zeros(3),
+        np.array([2, 2, 2]),
+        np.array([2.0, 2.0, 2.0]),
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+    )
+    assert out[0] == pytest.approx(-2 * (91 / 100 - 1))
     assert out[1] == pytest.approx(-2 * (90 / 96 - 1))
-    assert list(exits) == [2, 3, -1] and np.isnan(out[2])  # a delay past the window cannot trade
+    assert list(exits) == [2, 3, -1] and np.isnan(out[2])
 
 
 def test_liquidation_distance_matches_the_walker():

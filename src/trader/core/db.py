@@ -12,7 +12,6 @@ def _make_engine():
     url = settings.database_url
     if url.startswith("sqlite:///"):
         Path(url.removeprefix("sqlite:///")).parent.mkdir(parents=True, exist_ok=True)
-        # the trader loop and the API may share one SQLite file: wait for a lock instead of failing
         return create_engine(url, connect_args={"check_same_thread": False, "timeout": 30})
     return create_engine(url, pool_pre_ping=True)
 
@@ -29,11 +28,12 @@ SessionDep = Annotated[Session, Depends(get_session)]
 
 
 def create_db_and_tables() -> None:
-    import trader.models  # noqa: F401 — register tables
+    from trader.models import NewsItem, Trade
 
+    tables = [NewsItem.__table__, Trade.__table__]
     try:
-        SQLModel.metadata.create_all(engine)
-    except OperationalError as exc:  # another process created the same table between check and create
+        SQLModel.metadata.create_all(engine, tables=tables)
+    except OperationalError as exc:
         if "already exists" not in str(exc):
             raise
-        SQLModel.metadata.create_all(engine)
+        SQLModel.metadata.create_all(engine, tables=tables)

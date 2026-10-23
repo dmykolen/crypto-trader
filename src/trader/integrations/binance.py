@@ -23,14 +23,10 @@ ANNOUNCEMENT_URL = "https://www.binance.com/en/support/announcement/{code}"
 
 KLINE_COLUMNS = ["open_time", "open", "high", "low", "close", "volume", "close_time", "quote_volume", "count", "taker_buy_volume", "taker_buy_quote_volume", "ignore"]
 INTERVAL_MS = {"1m": 60_000, "3m": 180_000, "5m": 300_000, "15m": 900_000, "30m": 1_800_000, "1h": 3_600_000, "4h": 14_400_000, "1d": 86_400_000}
-# CMS catalogs worth watching: listings, delistings, general news (monitoring tags live there).
 CATALOGS = {48: "listing", 161: "delisting", 49: "news"}
 
 _HEADERS = {"User-Agent": "Mozilla/5.0 (trader research bot)", "Accept": "application/json"}
 _archive = httpx.Client(timeout=60, follow_redirects=True, headers=_HEADERS)
-
-
-# ---------------------------------------------------------------- archive (data.binance.vision)
 
 
 @retry(stop=stop_after_attempt(5), wait=wait_exponential(min=1, max=30), retry=retry_if_exception_type(httpx.TransportError), reraise=True)
@@ -64,6 +60,12 @@ def archive_funding(symbol: str, month: str) -> pd.DataFrame | None:
     return pd.DataFrame({"funding_time": df["calc_time"].astype("int64"), "rate": df["last_funding_rate"].astype("float64")})
 
 
+def archive_months(symbol: str, interval: str) -> list[str]:
+    prefix = f"data/futures/um/monthly/klines/{symbol}/{interval}/"
+    xml = _archive.get(ARCHIVE_LISTING, params={"prefix": prefix}).text
+    return sorted(set(re.findall(rf"{re.escape(symbol)}-{interval}-(\d{{4}}-\d{{2}})\.zip<", xml)))
+
+
 def archive_symbols() -> list[str]:
     """Every USDⓈ-M contract that ever published daily klines, delisted ones included."""
     symbols, marker, prefix = [], "", "data/futures/um/daily/klines/"
@@ -75,9 +77,6 @@ def archive_symbols() -> list[str]:
             return sorted(set(symbols))
         next_marker = re.search(r"<NextMarker>(.*?)</NextMarker>", xml)
         marker = next_marker.group(1) if next_marker else f"{prefix}{found[-1]}/"
-
-
-# ---------------------------------------------------------------- REST (fapi)
 
 
 class FuturesREST:
@@ -93,10 +92,10 @@ class FuturesREST:
             except httpx.TransportError:
                 time.sleep(2 * (attempt + 1))
                 continue
-            if response.status_code in (418, 429):  # weight limit / IP ban: back off hard
+            if response.status_code in (418, 429):
                 time.sleep(min(60, 5 * (attempt + 1)))
                 continue
-            if response.status_code == 400:  # unknown symbol or out-of-range window
+            if response.status_code == 400:
                 return None
             response.raise_for_status()
             return response.json()
@@ -133,9 +132,6 @@ class FuturesREST:
 
     def last_price(self, symbol: str) -> float:
         return float(self._get("/fapi/v1/ticker/price", symbol=symbol)["price"])
-
-
-# ---------------------------------------------------------------- CMS announcements
 
 
 async def announcements(client: httpx.AsyncClient, catalog_id: int, page: int = 1, page_size: int = 20) -> list[dict]:

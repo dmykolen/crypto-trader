@@ -75,6 +75,24 @@ def research_strategies(
     _print(report.strategy_research(symbols, days=days, interval=interval, train_days=train_days, fold_days=fold_days)["summary"])
 
 
+@research.command("ticks")
+def research_ticks(download: Annotated[bool, typer.Option(help="fetch tick windows for notices not yet cached")] = True) -> None:
+    """Second-by-second reaction of every past notice (aggTrades) → latency study + fast playbooks (data/fast_playbooks.json)."""
+    from trader.services import fast, lab, ticks
+
+    if download:
+        with Session(engine) as session:
+            ticks.study(session)
+    frame = ticks.restudy()
+    report = ticks.latency_report(frame)
+    lab.save("tick_latency_v2", report)
+    fitted = fast.fit_all(frame)
+    fast.save(fitted)
+    by_latency = {L: {k: row["by_type"]["cap10k"]["all"][k] for k in ("trades", "mean_ret", "final_equity", "mean_daily_usd", "max_drawdown_pct")} for L, row in report.items()}
+    live = {L: {k: v.get("describe") for k, v in types.items() if v.get("playbook")} for L, types in fitted.items()}
+    _print({"fast_playbooks_by_latency": live, "by_latency_cap10k": by_latency})
+
+
 @research.command("review")
 def research_review(name: str = "event_research") -> None:
     """Claude reviews a research report for overfitting, cost sensitivity and failure modes."""

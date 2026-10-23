@@ -39,7 +39,7 @@ class Exchange:
         """Market buy (side > 0) / sell. With `leverage` the symbol is first switched to isolated margin at that leverage."""
         symbol = await self.market(symbol_id)
         if leverage is not None:
-            with suppress(ccxt.ExchangeError):  # "No need to change margin type" when it already is isolated
+            with suppress(ccxt.ExchangeError):
                 await self._ex.set_margin_mode("isolated", symbol)
             await self._ex.set_leverage(int(leverage), symbol)
         amount = float(self._ex.amount_to_precision(symbol, qty))

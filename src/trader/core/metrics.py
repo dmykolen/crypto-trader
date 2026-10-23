@@ -24,3 +24,6 @@ llm_calls_total = Counter("llm_calls_total", "Anthropic API calls", ["model", "s
 orders_total = Counter("orders_total", "Positions opened", ["mode", "side"])
 trades_closed_total = Counter("trades_closed_total", "Positions closed", ["mode", "reason"])
 open_positions = Gauge("open_positions", "Currently open positions", ["mode"])
+notice_latency_seconds = Histogram(
+    "notice_latency_seconds", "Delay between a notice's publication and the moment the trader saw it", ["source"], buckets=(0.1, 0.25, 0.5, 1, 2, 3, 5, 10, 30, 60, 300)
+)
