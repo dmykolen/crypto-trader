@@ -18,6 +18,8 @@ class EventType(StrEnum):
     UPBIT_LISTING = "upbit_listing"
     UPBIT_WARNING = "upbit_warning"
     UPBIT_DELISTING = "upbit_delisting"
+    UPBIT_CAUTION = "upbit_caution"
+    UPBIT_WARNING_LIFTED = "upbit_warning_lifted"
     BINANCE_SPOT_LISTING = "binance_spot_listing"
     BINANCE_SPOT_DELISTING = "binance_spot_delisting"
     BINANCE_MONITORING_TAG = "binance_monitoring_tag"
@@ -77,8 +79,14 @@ def _strip_updates(title: str) -> str:
 
 def _upbit(notice: Notice) -> list[Event]:
     title = _strip_updates(notice.title)
+    if "유의 종목 지정 해제" in title or "유의종목 지정 해제" in title:
+        return [Event(EventType.UPBIT_WARNING_LIFTED, t, notice) for t in _tickers(title)]
     if "해제" in title or "연장" in title or "취소" in title:
         return []
+    if "유의 촉구" in title:
+        return [Event(EventType.UPBIT_CAUTION, t, notice) for t in _tickers(title)]
+    if "원화 마켓 신규 상장" in title or "원화마켓 신규 상장" in title:
+        return [Event(EventType.UPBIT_KRW_LISTING, t, notice) for t in _tickers(title)]
     if "신규 거래지원" in title or "디지털 자산 추가" in title or "코인 추가" in title:
         head = title.split("안내")[0] if "신규 거래지원" in title else title
         markets_part = re.search(r"\(([A-Z, ]+)\s*마켓\)", title) or re.search(r"([A-Z, ]+)\s*마켓", title)
@@ -100,7 +108,7 @@ def _upbit(notice: Notice) -> list[Event]:
 
 def _binance(notice: Notice) -> list[Event]:
     title = notice.title
-    if title.startswith("Binance Will List "):
+    if title.startswith("Binance Will List ") or title.startswith("Binance Lists "):
         return [Event(EventType.BINANCE_SPOT_LISTING, t, notice) for t in re.findall(rf"\(({_TICKER})\)", title)]
     if title.startswith("Binance Will Delist "):
         body = title.removeprefix("Binance Will Delist ").split(" on ")[0]

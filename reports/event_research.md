@@ -1,19 +1,19 @@
 # Event-driven playbooks — out-of-sample report
 
-Generated 2026-10-22T23:38:50+00:00. Every trade below was chosen by a rule that saw only events whose 24h outcome
+Generated 2026-10-23T13:47:03+00:00. Every trade below was chosen by a rule that saw only events whose 24h outcome
 was known before the notice appeared (walk-forward). Costs: taker fee, slippage, stop slippage, funding, isolated
 liquidation with maintenance margin — see `assumptions`.
 
 ## Criterion: ≥ $100 within 24h from a $1000 balance, on ≥ 3 tokens
 
-* **Per trade** (each OOS trade on a fresh $1000, closed ≤ 24h after the notice): **148** trades made ≥ $100 on **126** distinct tokens.
-* **One account** ($1000 start, 20% of equity per trade, ≤ 5 open, ≤ 30% per announcement): ends at **$3,483.4** (+248.34%, max drawdown -42.29%); **18** trades made ≥ 10% of the balance within 24h on **17** tokens.
+* **Per trade** (each OOS trade on a fresh $1000, closed ≤ 24h after the notice): **154** trades made ≥ $100 on **128** distinct tokens.
+* **One account** ($1000 start, 20% of equity per trade, ≤ 5 open, ≤ 30% per announcement): ends at **$3,019.08** (+201.91%, max drawdown -48.83%); **19** trades made ≥ 10% of the balance within 24h on **18** tokens.
 * Criterion met (both views, account profitable overall): **True**; still met without the 5 most profitable announcements: **True**
 
 ## Headline
 
-* events with a tradable perpetual window: **544**
-* out-of-sample trades: **425**, win rate **0.513**, mean / median return on margin **0.0592 / 0.0058**
+* events with a tradable perpetual window: **591**
+* out-of-sample trades: **449**, win rate **0.503**, mean / median return on margin **0.0547 / 0.0012**
 * liquidations: **0**
 
 ```json
@@ -38,37 +38,37 @@ the whole free balance to every trade — shown only to make the point that it i
 
 | policy | final_equity | return_pct | max_drawdown_pct | trades_taken | signals_skipped | win_rate | trading_days | days_ge_10pct | days_le_minus_10pct | best_day_pct | worst_day_pct |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| fraction | 3483.4 | 248.34 | -42.29 | 335 | 90 | 0.493 | 244 | 18 | 15 | 25.59 | -21.42 |
-| all_in | 17.86 | -98.21 | -99.86 | 240 | 185 | 0.512 | 221 | 70 | 61 | 101.76 | -81.5 |
+| fraction | 3019.08 | 201.91 | -48.83 | 358 | 91 | 0.483 | 264 | 19 | 16 | 25.59 | -21.42 |
+| all_in | 4.59 | -99.54 | -99.9 | 260 | 189 | 0.504 | 241 | 75 | 68 | 101.76 | -81.5 |
 
 ## By half-year (is the edge steady?)
 
 | period | oos_trades | win_rate | mean_ret_on_margin | account_equity_end | account_period_return_pct |
 |---|---|---|---|---|---|
 | 2021-H1 | 2 | 1.0 | 0.5025 | 1151.05 | 15.1 |
-| 2021-H2 | 3 | 0.667 | -0.0266 | 1097.1 | -4.69 |
-| 2022-H1 | 7 | 0.286 | -0.0823 | 966.0 | -11.95 |
-| 2022-H2 | 1 | 0.0 | -0.3956 | 889.57 | -7.91 |
-| 2023-H1 | 8 | 0.625 | -0.0312 | 861.41 | -3.17 |
-| 2023-H2 | 7 | 0.857 | 0.1721 | 1085.87 | 26.06 |
-| 2024-H1 | 13 | 0.154 | -0.063 | 959.42 | -11.65 |
-| 2024-H2 | 36 | 0.556 | 0.0575 | 1439.71 | 50.06 |
-| 2025-H1 | 62 | 0.419 | 0.0361 | 1498.96 | 4.12 |
-| 2025-H2 | 86 | 0.57 | 0.0527 | 1673.66 | 11.65 |
-| 2026-H1 | 133 | 0.571 | 0.1229 | 5152.47 | 207.86 |
-| 2026-H2 | 67 | 0.418 | -0.0016 | 3483.38 | -32.39 |
+| 2021-H2 | 4 | 0.5 | -0.0977 | 1028.87 | -10.61 |
+| 2022-H1 | 7 | 0.286 | -0.0823 | 905.94 | -11.95 |
+| 2022-H2 | 1 | 0.0 | -0.3956 | 834.26 | -7.91 |
+| 2023-H1 | 9 | 0.556 | -0.0314 | 802.5 | -3.81 |
+| 2023-H2 | 10 | 0.8 | 0.1678 | 1106.3 | 37.86 |
+| 2024-H1 | 18 | 0.167 | -0.0515 | 954.6 | -13.71 |
+| 2024-H2 | 37 | 0.568 | 0.0691 | 1571.85 | 64.66 |
+| 2025-H1 | 66 | 0.409 | 0.028 | 1510.46 | -3.91 |
+| 2025-H2 | 89 | 0.573 | 0.0591 | 1944.21 | 28.72 |
+| 2026-H1 | 138 | 0.558 | 0.113 | 5183.31 | 166.6 |
+| 2026-H2 | 68 | 0.412 | -0.0121 | 3019.1 | -41.75 |
 
 ## Concentration (the account without its best announcements / trades / half-year)
 
 | variant | oos_trades | mean_ret_on_margin | tokens_ge_100_on_fresh_1000 | account_return_pct | account_max_dd_pct | account_tokens_ge_10pct_in_24h |
 |---|---|---|---|---|---|---|
-| all OOS trades | 425 | 0.0592 | 126 | 248.34 | -42.29 | 17 |
-| without the best 1 announcement(s) | 416 | 0.0498 | 124 | 198.99 | -42.29 | 17 |
-| without the best 2 announcement(s) | 408 | 0.0414 | 121 | 154.13 | -46.11 | 16 |
-| without the best 5 announcement(s) | 394 | 0.0221 | 110 | 29.87 | -49.65 | 13 |
-| without the best 10 announcement(s) | 373 | 0.0062 | 98 | -13.11 | -53.5 | 11 |
-| without the best 10 trades | 415 | 0.035 | 118 | 42.97 | -54.79 | 12 |
-| without the best half-year (2026-H1) | 292 | 0.0302 | 89 | 13.15 | -49.19 | 9 |
+| all OOS trades | 449 | 0.0547 | 128 | 201.91 | -48.83 | 18 |
+| without the best 1 announcement(s) | 440 | 0.0457 | 126 | 159.14 | -48.83 | 18 |
+| without the best 2 announcement(s) | 432 | 0.0377 | 123 | 120.29 | -48.83 | 17 |
+| without the best 5 announcement(s) | 418 | 0.0193 | 112 | 12.57 | -48.83 | 14 |
+| without the best 10 announcement(s) | 397 | 0.0043 | 100 | -24.69 | -58.63 | 12 |
+| without the best 10 trades | 439 | 0.0317 | 120 | 23.93 | -53.13 | 13 |
+| without the best half-year (2026-H1) | 311 | 0.0288 | 91 | 13.25 | -49.22 | 10 |
 
 ## Mean return on margin, announcements resampled as clusters (bootstrap, 90% interval)
 
@@ -76,27 +76,29 @@ Trades triggered by one notice move together, so the notice — not the trade �
 
 | group | announcements | trades | mean | 90% interval | P(mean ≤ 0) |
 |---|---|---|---|---|---|
-| all | 276 | 425 | 0.0592 | 0.0227 … 0.0962 | 0.0034 |
-| binance_monitoring_tag | 20 | 84 | 0.1466 | 0.0241 … 0.2527 | 0.0274 |
-| binance_perp_delisting | 19 | 31 | 0.0254 | -0.0769 … 0.1109 | 0.3282 |
-| binance_spot_delisting | 22 | 60 | 0.1207 | 0.0021 … 0.2523 | 0.047 |
-| binance_spot_listing | 22 | 24 | 0.0214 | -0.0642 … 0.1187 | 0.3324 |
-| upbit_delisting | 14 | 14 | -0.0453 | -0.1004 … 0.0096 | 0.9152 |
-| upbit_krw_listing | 109 | 113 | -0.024 | -0.048 … 0.0 | 0.9498 |
-| upbit_listing | 38 | 67 | 0.071 | 0.0037 … 0.1453 | 0.037 |
-| upbit_warning | 32 | 32 | 0.0906 | -0.0306 … 0.2157 | 0.1148 |
+| all | 299 | 449 | 0.0547 | 0.0211 … 0.0895 | 0.0032 |
+| binance_monitoring_tag | 20 | 84 | 0.1466 | 0.0208 … 0.2567 | 0.0258 |
+| binance_perp_delisting | 19 | 31 | 0.0254 | -0.0747 … 0.1123 | 0.3258 |
+| binance_spot_delisting | 22 | 60 | 0.1207 | 0.0069 … 0.2476 | 0.039 |
+| binance_spot_listing | 22 | 24 | 0.0214 | -0.0645 … 0.1191 | 0.347 |
+| upbit_caution | 23 | 24 | 0.0066 | -0.0704 … 0.0925 | 0.4606 |
+| upbit_delisting | 14 | 14 | -0.0453 | -0.0995 … 0.0113 | 0.911 |
+| upbit_krw_listing | 108 | 112 | -0.0265 | -0.0507 … -0.0022 | 0.962 |
+| upbit_listing | 38 | 67 | 0.071 | 0.0047 … 0.1481 | 0.0408 |
+| upbit_warning | 32 | 32 | 0.0906 | -0.0289 … 0.2094 | 0.1124 |
+| upbit_warning_lifted | 1 | 1 | -0.5218 | -0.5218 … -0.5218 | 1.0 |
 
 ## Robustness (same walk-forward and account, harsher assumptions)
 
 | variant | oos_trades | win_rate | mean_ret_on_margin | tokens_ge_100_on_fresh_1000 | account_return_pct | account_max_dd_pct | account_tokens_ge_10pct_in_24h |
 |---|---|---|---|---|---|---|---|
-| baseline | 425 | 0.513 | 0.0592 | 126 | 248.34 | -42.29 | 17 |
-| entry latency 3 min | 440 | 0.495 | 0.0269 | 114 | 56.61 | -38.67 | 12 |
-| entry latency 5 min | 399 | 0.479 | 0.0175 | 109 | 10.4 | -53.55 | 6 |
-| 2x slippage | 357 | 0.51 | 0.0527 | 116 | 164.69 | -39.83 | 13 |
-| 3x slippage | 319 | 0.514 | 0.038 | 104 | 62.39 | -45.28 | 12 |
-| looser selection z=0.5 | 459 | 0.501 | 0.0586 | 137 | 225.99 | -45.03 | 22 |
-| stricter selection z=2 | 270 | 0.563 | 0.0531 | 94 | 227.16 | -25.89 | 9 |
+| baseline | 449 | 0.503 | 0.0547 | 128 | 201.91 | -48.83 | 18 |
+| entry latency 3 min | 468 | 0.491 | 0.0255 | 118 | 59.84 | -38.97 | 12 |
+| entry latency 5 min | 427 | 0.473 | 0.0138 | 113 | -12.22 | -60.92 | 7 |
+| 2x slippage | 385 | 0.491 | 0.0463 | 119 | 116.85 | -46.22 | 13 |
+| 3x slippage | 341 | 0.501 | 0.032 | 105 | 27.49 | -51.35 | 12 |
+| looser selection z=0.5 | 486 | 0.494 | 0.053 | 140 | 155.23 | -52.53 | 23 |
+| stricter selection z=2 | 283 | 0.555 | 0.0485 | 95 | 186.26 | -28.34 | 9 |
 
 ## Per event type (out-of-sample, each trade on a fresh $1000)
 
@@ -106,10 +108,12 @@ Trades triggered by one notice move together, so the notice — not the trade �
 | binance_perp_delisting | 44 | 31 | 0.581 | 0.0254 | 787.72 | 13 | 0 |
 | binance_spot_delisting | 72 | 60 | 0.567 | 0.1207 | 7242.29 | 28 | 0 |
 | binance_spot_listing | 34 | 24 | 0.375 | 0.0214 | 513.29 | 7 | 0 |
+| upbit_caution | 35 | 24 | 0.333 | 0.0066 | 157.34 | 5 | 0 |
 | upbit_delisting | 27 | 14 | 0.143 | -0.0453 | -634.29 | 1 | 0 |
-| upbit_krw_listing | 154 | 113 | 0.416 | -0.024 | -2706.85 | 10 | 0 |
+| upbit_krw_listing | 155 | 112 | 0.42 | -0.0265 | -2966.44 | 11 | 0 |
 | upbit_listing | 77 | 67 | 0.672 | 0.071 | 4755.55 | 34 | 0 |
 | upbit_warning | 42 | 32 | 0.5 | 0.0906 | 2898.54 | 11 | 0 |
+| upbit_warning_lifted | 11 | 1 | 0.0 | -0.5218 | -521.76 | 0 | 0 |
 
 ## Live playbooks (fitted on all history with the same rule)
 
@@ -119,10 +123,12 @@ Trades triggered by one notice move together, so the notice — not the trade �
 | binance_perp_delisting | SHORT 2x, enter +5m, hold ≤240m, SL 20% | 44 | 0.0835 | 0.5 | -0.4094 |
 | binance_spot_delisting | SHORT 5x, enter +30m, hold ≤480m, SL 10%, TP 20%, trail 10% | 72 | 0.2715 | 0.597 | -0.5218 |
 | binance_spot_listing | LONG 1x, enter +5m, hold ≤480m, SL 10% | 34 | 0.0701 | 0.441 | -0.104 |
+| upbit_caution | skip — no positive edge | 35 | None | None | None |
 | upbit_delisting | skip — no positive edge | 27 | None | None | None |
-| upbit_krw_listing | skip — no positive edge | 154 | None | None | None |
+| upbit_krw_listing | skip — no positive edge | 155 | None | None | None |
 | upbit_listing | SHORT 2x, enter +60m, hold ≤480m, SL 35%, TP 10% | 77 | 0.0491 | 0.675 | -0.1409 |
 | upbit_warning | SHORT 5x, enter +0m, hold ≤1380m, SL 5%, TP 20%, trail 10% | 42 | 0.1703 | 0.548 | -0.2767 |
+| upbit_warning_lifted | SHORT 5x, enter +0m, hold ≤240m, SL 5% | 11 | 0.2144 | 0.636 | -0.2726 |
 
 ## Event study (average path after the first possible fill, mean / median)
 
@@ -132,33 +138,36 @@ Trades triggered by one notice move together, so the notice — not the trade �
 | binance_perp_delisting | 44 | +2.44% / -1.39% | -2.72% / -0.43% | +2.72% / -1.37% | -5.02% / -2.45% | -3.74% / -2.26% |
 | binance_spot_delisting | 72 | -9.08% / -10.70% | -0.79% / -1.09% | -5.26% / -6.21% | -7.09% / -7.37% | -4.29% / -8.73% |
 | binance_spot_listing | 34 | +18.27% / +8.33% | +3.30% / +0.45% | +3.46% / -0.08% | +4.44% / -2.49% | +0.51% / -1.11% |
+| upbit_caution | 35 | -0.37% / +0.00% | +0.55% / -0.19% | +0.87% / -0.69% | +0.62% / +0.00% | +1.03% / -1.48% |
 | upbit_delisting | 27 | -4.88% / -3.48% | -0.45% / +0.00% | +0.17% / +0.00% | +1.62% / +0.00% | +0.42% / +0.00% |
-| upbit_krw_listing | 154 | +23.58% / +14.70% | +0.27% / -0.33% | -0.16% / -1.05% | -0.99% / -3.50% | -3.46% / -6.48% |
+| upbit_krw_listing | 155 | +23.44% / +14.68% | +0.27% / -0.52% | -0.16% / -1.00% | -0.98% / -3.50% | -3.45% / -6.41% |
 | upbit_listing | 77 | +6.63% / +3.69% | +0.02% / -0.59% | -2.00% / -2.62% | -3.85% / -3.76% | -4.32% / -3.73% |
 | upbit_warning | 42 | -0.42% / -0.15% | -2.07% / -0.67% | -4.79% / -0.71% | -2.30% / -0.40% | -5.85% / -1.70% |
+| upbit_warning_lifted | 11 | +6.94% / +5.46% | -2.28% / -2.69% | -3.00% / -4.12% | -3.19% / -3.87% | +0.88% / -2.93% |
 
 ## Account trades that made ≥ 10% of the balance within 24h (≥ $100 per $1000)
 
 | entry (UTC) | exit (UTC) | symbol | event | balance at entry | margin | PnL | return on margin |
 |---|---|---|---|---|---|---|---|
 | 2021-04-14T07:02:00+00:00 | 2021-04-14T14:13:00+00:00 | GRTUSDT | upbit_listing | 1000.0 | 200.0 | +101.12 | +0.506 |
-| 2024-11-13T06:46:00+00:00 | 2024-11-13T14:46:00+00:00 | AGLDUSDT | upbit_listing | 1189.76 | 237.95 | +167.60 | +0.704 |
-| 2025-04-03T07:02:00+00:00 | 2025-04-04T06:02:00+00:00 | BSWUSDT | binance_monitoring_tag | 1638.07 | 327.61 | +333.37 | +1.018 |
-| 2025-07-25T02:21:00+00:00 | 2025-07-26T01:21:00+00:00 | HUMAUSDT | upbit_listing | 1387.04 | 277.41 | +214.35 | +0.773 |
-| 2025-10-02T12:31:00+00:00 | 2025-10-02T13:38:00+00:00 | ZKCUSDT | upbit_warning | 1171.76 | 234.35 | +231.89 | +0.989 |
-| 2025-10-10T06:31:00+00:00 | 2025-10-10T06:47:00+00:00 | INUSDT | upbit_krw_listing | 1530.71 | 306.14 | +181.76 | +0.594 |
-| 2025-10-29T03:17:00+00:00 | 2025-10-29T03:34:00+00:00 | FLMUSDT | binance_spot_delisting | 1547.86 | 309.57 | +306.32 | +0.989 |
-| 2026-02-12T07:02:00+00:00 | 2026-02-13T06:02:00+00:00 | NOMUSDT | upbit_warning | 1685.26 | 337.05 | +270.10 | +0.801 |
-| 2026-03-06T08:31:00+00:00 | 2026-03-07T07:31:00+00:00 | COSUSDT | binance_monitoring_tag | 1603.93 | 320.79 | +200.35 | +0.625 |
-| 2026-04-20T05:31:00+00:00 | 2026-04-20T06:31:00+00:00 | PIEVERSEUSDT | upbit_krw_listing | 1843.37 | 368.67 | +188.25 | +0.511 |
-| 2026-05-13T08:32:00+00:00 | 2026-05-13T09:48:00+00:00 | ATAUSDT | binance_spot_delisting | 1931.21 | 386.24 | +382.19 | +0.989 |
-| 2026-05-22T08:02:00+00:00 | 2026-05-23T07:02:00+00:00 | COOKIEUSDT | binance_monitoring_tag | 2487.86 | 497.57 | +381.16 | +0.766 |
-| 2026-06-05T07:32:00+00:00 | 2026-06-05T15:32:00+00:00 | COSUSDT | binance_spot_delisting | 3012.42 | 602.48 | +412.63 | +0.685 |
-| 2026-06-15T09:32:00+00:00 | 2026-06-16T08:32:00+00:00 | OPGUSDT | upbit_listing | 3650.55 | 730.11 | +397.27 | +0.544 |
-| 2026-06-18T07:31:00+00:00 | 2026-06-18T08:14:00+00:00 | AERGOUSDT | upbit_warning | 4047.82 | 809.56 | +795.26 | +0.982 |
-| 2026-06-22T05:01:00+00:00 | 2026-06-23T04:01:00+00:00 | TAIKOUSDT | upbit_warning | 4830.37 | 966.07 | +553.69 | +0.573 |
-| 2026-08-11T06:01:00+00:00 | 2026-08-12T01:01:00+00:00 | RVNUSDT | upbit_warning | 3385.73 | 677.15 | +633.53 | +0.936 |
-| 2026-09-22T06:02:00+00:00 | 2026-09-23T05:02:00+00:00 | SOPHUSDT | upbit_warning | 3107.18 | 621.44 | +321.54 | +0.517 |
+| 2024-11-13T06:46:00+00:00 | 2024-11-13T14:46:00+00:00 | AGLDUSDT | upbit_listing | 1183.8 | 236.76 | +166.76 | +0.704 |
+| 2025-04-03T07:02:00+00:00 | 2025-04-04T06:02:00+00:00 | BSWUSDT | binance_monitoring_tag | 1630.15 | 326.03 | +331.76 | +1.018 |
+| 2025-07-25T02:21:00+00:00 | 2025-07-26T01:21:00+00:00 | HUMAUSDT | upbit_listing | 1397.68 | 279.54 | +216.00 | +0.773 |
+| 2025-10-02T12:31:00+00:00 | 2025-10-02T13:38:00+00:00 | ZKCUSDT | upbit_warning | 1207.65 | 241.53 | +238.99 | +0.989 |
+| 2025-10-10T06:31:00+00:00 | 2025-10-10T06:47:00+00:00 | INUSDT | upbit_krw_listing | 1577.59 | 315.52 | +187.32 | +0.594 |
+| 2025-10-29T03:17:00+00:00 | 2025-10-29T03:34:00+00:00 | FLMUSDT | binance_spot_delisting | 1595.27 | 319.05 | +315.70 | +0.989 |
+| 2025-12-27T13:51:00+00:00 | 2025-12-27T21:17:00+00:00 | FLOWUSDT | upbit_caution | 1636.89 | 327.38 | +208.11 | +0.636 |
+| 2026-02-12T07:02:00+00:00 | 2026-02-13T06:02:00+00:00 | NOMUSDT | upbit_warning | 1957.67 | 391.53 | +313.76 | +0.801 |
+| 2026-03-06T08:31:00+00:00 | 2026-03-07T07:31:00+00:00 | COSUSDT | binance_monitoring_tag | 1876.09 | 375.22 | +234.35 | +0.625 |
+| 2026-04-20T05:31:00+00:00 | 2026-04-20T06:31:00+00:00 | PIEVERSEUSDT | upbit_krw_listing | 1880.74 | 376.15 | +192.06 | +0.511 |
+| 2026-05-13T08:32:00+00:00 | 2026-05-13T09:48:00+00:00 | ATAUSDT | binance_spot_delisting | 1970.33 | 394.07 | +389.93 | +0.989 |
+| 2026-05-22T08:02:00+00:00 | 2026-05-23T07:02:00+00:00 | COOKIEUSDT | binance_monitoring_tag | 2538.28 | 507.66 | +388.89 | +0.766 |
+| 2026-06-05T07:32:00+00:00 | 2026-06-05T15:32:00+00:00 | COSUSDT | binance_spot_delisting | 3088.46 | 617.69 | +423.05 | +0.685 |
+| 2026-06-15T09:32:00+00:00 | 2026-06-16T08:32:00+00:00 | OPGUSDT | upbit_listing | 3742.71 | 748.54 | +407.30 | +0.544 |
+| 2026-06-18T07:31:00+00:00 | 2026-06-18T08:14:00+00:00 | AERGOUSDT | upbit_warning | 4150.01 | 830.0 | +815.33 | +0.982 |
+| 2026-06-22T05:01:00+00:00 | 2026-06-23T04:01:00+00:00 | TAIKOUSDT | upbit_warning | 4859.27 | 971.85 | +557.01 | +0.573 |
+| 2026-08-11T06:01:00+00:00 | 2026-08-12T01:01:00+00:00 | RVNUSDT | upbit_warning | 3409.56 | 681.91 | +637.98 | +0.936 |
+| 2026-09-22T06:02:00+00:00 | 2026-09-23T05:02:00+00:00 | SOPHUSDT | upbit_warning | 3064.17 | 612.83 | +317.09 | +0.517 |
 
 ## Every out-of-sample trade (each on a fresh $1000)
 
@@ -166,6 +175,7 @@ Trades triggered by one notice move together, so the notice — not the trade �
 |---|---|---|---|---|---|---|
 | 2021-04-14T07:00:01+00:00 | upbit_listing | GRTUSDT | SHORT 5x, enter +0m, hold ≤1380m, SL 10%, TP 10% | 2021-04-14T07:02:00+00:00 → 2021-04-14T14:13:00+00:00 | +0.506 | +505.60 |
 | 2021-04-14T07:00:01+00:00 | upbit_listing | SNXUSDT | SHORT 5x, enter +0m, hold ≤1380m, SL 10%, TP 10% | 2021-04-14T07:02:00+00:00 → 2021-04-14T14:15:00+00:00 | +0.499 | +499.32 |
+| 2021-12-15T04:00:03+00:00 | upbit_krw_listing | NEARUSDT | LONG 3x, enter +0m, hold ≤480m, SL 10%, TP 20% | 2021-12-15T04:02:00+00:00 → 2021-12-15T04:05:00+00:00 | -0.311 | -310.95 |
 | 2021-12-22T04:00:01+00:00 | upbit_listing | GTCUSDT | SHORT 5x, enter +0m, hold ≤1380m, SL 10%, TP 10% | 2021-12-22T04:02:00+00:00 → 2021-12-22T04:52:00+00:00 | -0.522 | -521.76 |
 | 2021-12-22T04:00:01+00:00 | upbit_listing | OCEANUSDT | SHORT 5x, enter +0m, hold ≤1380m, SL 10%, TP 10% | 2021-12-22T04:02:00+00:00 → 2021-12-23T03:02:00+00:00 | +0.285 | +285.13 |
 | 2021-12-29T04:50:01+00:00 | upbit_listing | LPTUSDT | SHORT 5x, enter +60m, hold ≤480m, SL 10%, TP 10% | 2021-12-29T05:52:00+00:00 → 2021-12-29T13:52:00+00:00 | +0.157 | +156.70 |
@@ -180,22 +190,30 @@ Trades triggered by one notice move together, so the notice — not the trade �
 | 2023-01-18T01:00:16+00:00 | upbit_krw_listing | 1000SHIBUSDT | SHORT 5x, enter +30m, hold ≤60m, SL 10%, TP 10% | 2023-01-18T01:32:00+00:00 → 2023-01-18T02:32:00+00:00 | -0.280 | -280.37 |
 | 2023-01-18T01:00:16+00:00 | upbit_krw_listing | GALUSDT | SHORT 5x, enter +30m, hold ≤60m, SL 10%, TP 10% | 2023-01-18T01:32:00+00:00 → 2023-01-18T02:32:00+00:00 | -0.226 | -225.60 |
 | 2023-03-07T00:30:08+00:00 | upbit_krw_listing | MASKUSDT | LONG 2x, enter +0m, hold ≤240m, SL 5%, TP 20%, trail 10% | 2023-03-07T00:32:00+00:00 → 2023-03-07T04:32:00+00:00 | +0.037 | +37.27 |
+| 2023-03-11T11:53:42+00:00 | upbit_caution | MKRUSDT | LONG 5x, enter +60m, hold ≤240m, SL 10%, TP 20% | 2023-03-11T12:55:00+00:00 → 2023-03-11T16:55:00+00:00 | -0.029 | -29.07 |
 | 2023-03-21T00:51:45+00:00 | upbit_listing | MAGICUSDT | SHORT 3x, enter +30m, hold ≤480m, SL 20% | 2023-03-21T01:23:00+00:00 → 2023-03-21T09:23:00+00:00 | +0.141 | +140.65 |
 | 2023-03-30T01:00:00+00:00 | upbit_krw_listing | ARBUSDT | LONG 2x, enter +0m, hold ≤240m, SL 5%, TP 20%, trail 10% | 2023-03-30T01:01:00+00:00 → 2023-03-30T05:01:00+00:00 | +0.063 | +62.70 |
-| 2023-04-27T01:00:17+00:00 | upbit_krw_listing | EGLDUSDT | LONG 3x, enter +0m, hold ≤240m, SL 5%, TP 20%, trail 10% | 2023-04-27T01:02:00+00:00 → 2023-04-27T05:02:00+00:00 | +0.013 | +12.59 |
+| 2023-04-27T01:00:17+00:00 | upbit_krw_listing | EGLDUSDT | LONG 2x, enter +0m, hold ≤240m, SL 5%, TP 20%, trail 10% | 2023-04-27T01:02:00+00:00 → 2023-04-27T05:02:00+00:00 | +0.008 | +8.39 |
 | 2023-06-01T04:30:02+00:00 | upbit_krw_listing | GRTUSDT | LONG 3x, enter +0m, hold ≤240m, SL 5%, TP 20%, trail 10% | 2023-06-01T04:32:00+00:00 → 2023-06-01T04:37:00+00:00 | -0.161 | -161.47 |
 | 2023-06-27T05:00:00+00:00 | upbit_krw_listing | BLURUSDT | LONG 2x, enter +0m, hold ≤240m, SL 5%, TP 20%, trail 10% | 2023-06-27T05:01:00+00:00 → 2023-06-27T09:01:00+00:00 | +0.165 | +164.73 |
 | 2023-07-11T00:00:02+00:00 | upbit_listing | MINAUSDT | SHORT 3x, enter +30m, hold ≤480m, SL 20% | 2023-07-11T00:32:00+00:00 → 2023-07-11T08:32:00+00:00 | +0.002 | +2.49 |
-| 2023-07-28T02:30:00+00:00 | upbit_krw_listing | IMXUSDT | LONG 3x, enter +0m, hold ≤240m, SL 5%, TP 20%, trail 10% | 2023-07-28T02:31:00+00:00 → 2023-07-28T06:31:00+00:00 | +0.041 | +40.77 |
+| 2023-07-28T02:30:00+00:00 | upbit_krw_listing | IMXUSDT | LONG 2x, enter +0m, hold ≤240m, SL 5%, TP 20%, trail 10% | 2023-07-28T02:31:00+00:00 → 2023-07-28T06:31:00+00:00 | +0.027 | +27.18 |
+| 2023-07-31T00:37:19+00:00 | upbit_caution | CRVUSDT | LONG 5x, enter +60m, hold ≤480m, SL 10%, TP 10% | 2023-07-31T01:39:00+00:00 → 2023-07-31T09:39:00+00:00 | +0.121 | +121.08 |
 | 2023-08-10T00:10:00+00:00 | upbit_listing | STGUSDT | SHORT 3x, enter +60m, hold ≤480m, SL 20% | 2023-08-10T01:11:00+00:00 → 2023-08-10T09:11:00+00:00 | +0.200 | +200.04 |
 | 2023-08-22T00:20:02+00:00 | upbit_listing | CYBERUSDT | SHORT 3x, enter +60m, hold ≤480m, SL 20% | 2023-08-22T01:22:00+00:00 → 2023-08-22T09:22:00+00:00 | +0.320 | +319.90 |
+| 2023-09-21T13:59:59+00:00 | upbit_caution | LINAUSDT | LONG 5x, enter +60m, hold ≤480m, SL 10%, TP 10% | 2023-09-21T15:01:00+00:00 → 2023-09-21T18:27:00+00:00 | +0.487 | +487.00 |
 | 2023-10-24T04:25:01+00:00 | upbit_krw_listing | MINAUSDT | LONG 3x, enter +0m, hold ≤240m, SL 5%, TP 20%, trail 10% | 2023-10-24T04:27:00+00:00 → 2023-10-24T04:31:00+00:00 | -0.161 | -161.47 |
+| 2023-11-23T01:30:00+00:00 | upbit_caution | KNCUSDT | LONG 5x, enter +60m, hold ≤480m, SL 10%, TP 10% | 2023-11-23T02:31:00+00:00 → 2023-11-23T10:31:00+00:00 | -0.122 | -122.00 |
 | 2023-11-30T05:00:00+00:00 | upbit_listing | IDUSDT | SHORT 3x, enter +60m, hold ≤480m, SL 20% | 2023-11-30T06:01:00+00:00 → 2023-11-30T14:01:00+00:00 | +0.409 | +409.12 |
 | 2023-12-18T07:30:00+00:00 | upbit_krw_listing | ASTRUSDT | LONG 2x, enter +0m, hold ≤240m, SL 5%, TP 20%, trail 10% | 2023-12-18T07:31:00+00:00 → 2023-12-18T07:32:00+00:00 | +0.394 | +394.20 |
+| 2024-01-31T15:00:08+00:00 | upbit_caution | XRPUSDT | LONG 5x, enter +60m, hold ≤480m, SL 10%, TP 10% | 2024-01-31T16:02:00+00:00 → 2024-02-01T00:02:00+00:00 | -0.058 | -57.76 |
 | 2024-02-07T04:13:10+00:00 | upbit_krw_listing | IDUSDT | LONG 3x, enter +0m, hold ≤240m, SL 5%, TP 20%, trail 10% | 2024-02-07T04:15:00+00:00 → 2024-02-07T04:17:00+00:00 | -0.161 | -161.47 |
 | 2024-02-27T02:45:08+00:00 | upbit_krw_listing | ALTUSDT | LONG 2x, enter +0m, hold ≤240m, SL 10%, TP 20% | 2024-02-27T02:47:00+00:00 → 2024-02-27T06:47:00+00:00 | -0.003 | -2.77 |
 | 2024-02-27T02:45:08+00:00 | upbit_krw_listing | PYTHUSDT | LONG 2x, enter +0m, hold ≤240m, SL 10%, TP 20% | 2024-02-27T02:47:00+00:00 → 2024-02-27T06:47:00+00:00 | +0.166 | +165.57 |
 | 2024-04-23T05:32:10+00:00 | upbit_krw_listing | BIGTIMEUSDT | LONG 2x, enter +0m, hold ≤240m, SL 10%, TP 20% | 2024-04-23T05:34:00+00:00 → 2024-04-23T08:37:00+00:00 | -0.203 | -203.47 |
+| 2024-04-25T05:30:15+00:00 | upbit_caution | OGNUSDT | LONG 5x, enter +60m, hold ≤480m, SL 10%, TP 10% | 2024-04-25T06:32:00+00:00 → 2024-04-25T14:32:00+00:00 | -0.008 | -7.60 |
+| 2024-04-25T05:31:18+00:00 | upbit_caution | OCEANUSDT | LONG 5x, enter +60m, hold ≤480m, SL 10%, TP 10% | 2024-04-25T06:33:00+00:00 → 2024-04-25T14:33:00+00:00 | -0.013 | -12.66 |
+| 2024-04-25T06:00:01+00:00 | upbit_caution | LSKUSDT | LONG 5x, enter +60m, hold ≤480m, SL 10%, TP 10% | 2024-04-25T07:02:00+00:00 → 2024-04-25T15:02:00+00:00 | +0.226 | +226.36 |
 | 2024-05-03T05:36:10+00:00 | upbit_krw_listing | ZETAUSDT | LONG 2x, enter +0m, hold ≤240m, SL 10%, TP 20% | 2024-05-03T05:38:00+00:00 → 2024-05-03T09:31:00+00:00 | -0.191 | -191.40 |
 | 2024-05-03T05:36:10+00:00 | upbit_krw_listing | OMNIUSDT | LONG 2x, enter +0m, hold ≤240m, SL 10%, TP 20% | 2024-05-03T05:38:00+00:00 → 2024-05-03T05:39:00+00:00 | -0.207 | -207.30 |
 | 2024-05-08T05:00:26+00:00 | binance_perp_delisting | IDEXUSDT | LONG 5x, enter +15m, hold ≤60m, SL 5%, TP 10% | 2024-05-08T05:17:00+00:00 → 2024-05-08T06:17:00+00:00 | +0.081 | +81.31 |
@@ -203,6 +221,7 @@ Trades triggered by one notice move together, so the notice — not the trade �
 | 2024-05-08T05:00:26+00:00 | binance_perp_delisting | GLMRUSDT | LONG 5x, enter +15m, hold ≤60m, SL 5%, TP 10% | 2024-05-08T05:17:00+00:00 → 2024-05-08T06:17:00+00:00 | -0.041 | -41.04 |
 | 2024-05-08T05:00:26+00:00 | binance_perp_delisting | MDTUSDT | LONG 5x, enter +15m, hold ≤60m, SL 5%, TP 10% | 2024-05-08T05:17:00+00:00 → 2024-05-08T06:17:00+00:00 | -0.085 | -85.05 |
 | 2024-05-08T05:00:26+00:00 | binance_perp_delisting | AUDIOUSDT | LONG 5x, enter +15m, hold ≤60m, SL 5%, TP 10% | 2024-05-08T05:17:00+00:00 → 2024-05-08T06:17:00+00:00 | -0.044 | -44.13 |
+| 2024-05-16T10:00:01+00:00 | upbit_caution | STXUSDT | LONG 5x, enter +60m, hold ≤480m, SL 10%, TP 10% | 2024-05-16T11:02:00+00:00 → 2024-05-16T19:02:00+00:00 | -0.255 | -255.47 |
 | 2024-05-29T09:15:13+00:00 | upbit_krw_listing | AUCTIONUSDT | LONG 1x, enter +0m, hold ≤240m, SL 5%, TP 20%, trail 10% | 2024-05-29T09:17:00+00:00 → 2024-05-29T10:04:00+00:00 | -0.023 | -23.07 |
 | 2024-05-30T07:29:55+00:00 | upbit_krw_listing | STGUSDT | LONG 1x, enter +0m, hold ≤240m, SL 5%, TP 20%, trail 10% | 2024-05-30T07:31:00+00:00 → 2024-05-30T07:33:00+00:00 | -0.054 | -53.82 |
 | 2024-07-01T07:00:03+00:00 | binance_monitoring_tag | BALUSDT | SHORT 5x, enter +0m, hold ≤1380m, SL 5%, TP 10% | 2024-07-01T07:02:00+00:00 → 2024-07-01T14:02:00+00:00 | +0.488 | +488.40 |
@@ -230,6 +249,7 @@ Trades triggered by one notice move together, so the notice — not the trade �
 | 2024-11-13T06:15:00+00:00 | upbit_listing | OXTUSDT | SHORT 3x, enter +30m, hold ≤480m, SL 20% | 2024-11-13T06:46:00+00:00 → 2024-11-13T14:46:00+00:00 | -0.215 | -215.45 |
 | 2024-11-13T06:15:00+00:00 | upbit_listing | RADUSDT | SHORT 3x, enter +30m, hold ≤480m, SL 20% | 2024-11-13T06:46:00+00:00 → 2024-11-13T14:46:00+00:00 | -0.012 | -11.72 |
 | 2024-11-13T06:15:00+00:00 | upbit_listing | XLMUSDT | SHORT 3x, enter +30m, hold ≤480m, SL 20% | 2024-11-13T06:46:00+00:00 → 2024-11-13T14:46:00+00:00 | -0.110 | -109.75 |
+| 2024-11-19T07:00:05+00:00 | upbit_caution | STMXUSDT | LONG 5x, enter +60m, hold ≤480m, SL 10%, TP 10% | 2024-11-19T08:02:00+00:00 → 2024-11-19T08:20:00+00:00 | +0.487 | +486.50 |
 | 2024-11-20T02:49:09+00:00 | upbit_listing | JASMYUSDT | SHORT 3x, enter +60m, hold ≤480m, SL 20% | 2024-11-20T03:51:00+00:00 → 2024-11-20T11:51:00+00:00 | +0.108 | +107.58 |
 | 2024-11-26T08:30:14+00:00 | binance_spot_delisting | KEYUSDT | SHORT 5x, enter +60m, hold ≤480m, SL 10% | 2024-11-26T09:32:00+00:00 → 2024-11-26T17:32:00+00:00 | -0.120 | -119.95 |
 | 2024-11-26T08:30:14+00:00 | binance_spot_delisting | RENUSDT | SHORT 5x, enter +60m, hold ≤480m, SL 10% | 2024-11-26T09:32:00+00:00 → 2024-11-26T09:48:00+00:00 | -0.522 | -521.76 |
@@ -243,6 +263,7 @@ Trades triggered by one notice move together, so the notice — not the trade �
 | 2024-12-18T08:01:12+00:00 | binance_spot_delisting | BLZUSDT | SHORT 3x, enter +15m, hold ≤480m, SL 20%, TP 10% | 2024-12-18T08:18:00+00:00 → 2024-12-18T12:02:00+00:00 | +0.293 | +293.24 |
 | 2025-01-02T09:00:19+00:00 | binance_monitoring_tag | STMXUSDT | SHORT 5x, enter +0m, hold ≤1380m, SL 5%, TP 10% | 2025-01-02T09:02:00+00:00 → 2025-01-03T08:02:00+00:00 | +0.208 | +208.30 |
 | 2025-01-02T09:00:19+00:00 | binance_monitoring_tag | TROYUSDT | SHORT 5x, enter +0m, hold ≤1380m, SL 5%, TP 10% | 2025-01-02T09:02:00+00:00 → 2025-01-02T14:11:00+00:00 | +0.489 | +488.74 |
+| 2025-01-13T08:00:01+00:00 | upbit_caution | IOSTUSDT | LONG 5x, enter +60m, hold ≤480m, SL 10%, TP 10% | 2025-01-13T09:02:00+00:00 → 2025-01-13T17:02:00+00:00 | -0.234 | -234.24 |
 | 2025-01-15T08:00:06+00:00 | binance_perp_delisting | REEFUSDT | LONG 5x, enter +5m, hold ≤60m, SL 5% | 2025-01-15T08:07:00+00:00 → 2025-01-15T09:01:00+00:00 | -0.269 | -269.12 |
 | 2025-01-31T08:17:39+00:00 | upbit_krw_listing | VIRTUALUSDT | SHORT 1x, enter +30m, hold ≤60m, SL 20% | 2025-01-31T08:49:00+00:00 → 2025-01-31T09:49:00+00:00 | -0.001 | -0.59 |
 | 2025-02-06T04:58:53+00:00 | upbit_listing | JTOUSDT | SHORT 3x, enter +60m, hold ≤480m, SL 20% | 2025-02-06T06:00:00+00:00 → 2025-02-06T14:00:00+00:00 | +0.163 | +162.89 |
@@ -253,8 +274,9 @@ Trades triggered by one notice move together, so the notice — not the trade �
 | 2025-02-17T07:00:24+00:00 | binance_spot_delisting | STMXUSDT | SHORT 3x, enter +15m, hold ≤480m, SL 20% | 2025-02-17T07:17:00+00:00 → 2025-02-17T15:17:00+00:00 | -0.352 | -351.74 |
 | 2025-02-21T05:00:00+00:00 | upbit_krw_listing | JTOUSDT | SHORT 1x, enter +30m, hold ≤60m, SL 20% | 2025-02-21T05:31:00+00:00 → 2025-02-21T06:31:00+00:00 | +0.053 | +52.51 |
 | 2025-02-21T05:10:02+00:00 | upbit_listing | ARKMUSDT | SHORT 3x, enter +0m, hold ≤1380m, SL 20% | 2025-02-21T05:12:00+00:00 → 2025-02-22T04:12:00+00:00 | +0.233 | +233.07 |
-| 2025-02-25T08:39:55+00:00 | upbit_krw_listing | COWUSDT | SHORT 1x, enter +30m, hold ≤60m, SL 20% | 2025-02-25T09:11:00+00:00 → 2025-02-25T10:11:00+00:00 | -0.009 | -8.69 |
+| 2025-02-25T08:39:55+00:00 | upbit_krw_listing | COWUSDT | SHORT 2x, enter +30m, hold ≤60m, SL 20% | 2025-02-25T09:11:00+00:00 → 2025-02-25T10:11:00+00:00 | -0.017 | -17.37 |
 | 2025-03-05T02:47:19+00:00 | upbit_krw_listing | KAITOUSDT | SHORT 1x, enter +30m, hold ≤60m, SL 20% | 2025-03-05T03:19:00+00:00 → 2025-03-05T04:19:00+00:00 | -0.069 | -69.25 |
+| 2025-03-19T06:31:55+00:00 | upbit_caution | HIFIUSDT | LONG 5x, enter +60m, hold ≤480m, SL 10%, TP 10% | 2025-03-19T07:33:00+00:00 → 2025-03-19T15:33:00+00:00 | -0.210 | -210.31 |
 | 2025-03-21T04:57:29+00:00 | upbit_krw_listing | ORCAUSDT | SHORT 1x, enter +30m, hold ≤60m, SL 20% | 2025-03-21T05:29:00+00:00 → 2025-03-21T06:29:00+00:00 | -0.044 | -44.18 |
 | 2025-03-21T05:50:20+00:00 | binance_spot_delisting | AERGOUSDT | SHORT 2x, enter +0m, hold ≤1380m, SL 35%, TP 20% | 2025-03-21T05:52:00+00:00 → 2025-03-22T04:52:00+00:00 | -0.160 | -160.27 |
 | 2025-03-21T05:50:20+00:00 | binance_spot_delisting | COMBOUSDT | SHORT 2x, enter +0m, hold ≤1380m, SL 35%, TP 20% | 2025-03-21T05:52:00+00:00 → 2025-03-21T05:59:00+00:00 | -0.710 | -710.45 |
@@ -269,6 +291,7 @@ Trades triggered by one notice move together, so the notice — not the trade �
 | 2025-04-03T07:00:36+00:00 | binance_monitoring_tag | STRKUSDT | SHORT 5x, enter +0m, hold ≤1380m, SL 5% | 2025-04-03T07:02:00+00:00 → 2025-04-04T06:02:00+00:00 | -0.032 | -31.61 |
 | 2025-04-03T07:00:36+00:00 | binance_monitoring_tag | TONUSDT | SHORT 5x, enter +0m, hold ≤1380m, SL 5% | 2025-04-03T07:02:00+00:00 → 2025-04-04T06:02:00+00:00 | +0.307 | +306.83 |
 | 2025-04-04T07:04:42+00:00 | upbit_krw_listing | FILUSDT | SHORT 1x, enter +0m, hold ≤1380m, SL 5% | 2025-04-04T07:06:00+00:00 → 2025-04-05T06:06:00+00:00 | +0.058 | +58.10 |
+| 2025-04-09T12:00:00+00:00 | upbit_caution | AERGOUSDT | LONG 5x, enter +60m, hold ≤480m, SL 10%, TP 10% | 2025-04-09T13:01:00+00:00 → 2025-04-09T21:01:00+00:00 | -0.020 | -20.47 |
 | 2025-04-16T05:39:10+00:00 | upbit_krw_listing | WCTUSDT | SHORT 1x, enter +0m, hold ≤1380m, SL 5% | 2025-04-16T05:41:00+00:00 → 2025-04-16T05:42:00+00:00 | -0.054 | -54.18 |
 | 2025-04-16T05:56:44+00:00 | upbit_listing | SHELLUSDT | SHORT 3x, enter +0m, hold ≤1380m, SL 20% | 2025-04-16T05:58:00+00:00 → 2025-04-17T04:58:00+00:00 | +0.119 | +119.08 |
 | 2025-04-24T04:00:05+00:00 | binance_spot_delisting | ALPACAUSDT | SHORT 3x, enter +15m, hold ≤480m, SL 20% | 2025-04-24T04:17:00+00:00 → 2025-04-24T04:33:00+00:00 | -0.614 | -614.11 |
@@ -291,6 +314,7 @@ Trades triggered by one notice move together, so the notice — not the trade �
 | 2025-05-27T07:44:50+00:00 | upbit_listing | HYPERUSDT | SHORT 3x, enter +0m, hold ≤1380m, SL 20% | 2025-05-27T07:46:00+00:00 → 2025-05-28T06:46:00+00:00 | +0.366 | +366.33 |
 | 2025-05-27T07:44:50+00:00 | upbit_listing | REDUSDT | SHORT 3x, enter +0m, hold ≤1380m, SL 20% | 2025-05-27T07:46:00+00:00 → 2025-05-28T06:46:00+00:00 | +0.163 | +162.64 |
 | 2025-05-30T03:15:00+00:00 | upbit_krw_listing | LPTUSDT | SHORT 1x, enter +0m, hold ≤1380m, SL 5% | 2025-05-30T03:16:00+00:00 → 2025-05-30T04:07:00+00:00 | -0.061 | -61.23 |
+| 2025-06-02T09:00:00+00:00 | upbit_caution | CKBUSDT | LONG 5x, enter +60m, hold ≤480m, SL 10%, TP 10% | 2025-06-02T10:01:00+00:00 → 2025-06-02T18:01:00+00:00 | +0.084 | +83.89 |
 | 2025-06-05T05:00:18+00:00 | binance_monitoring_tag | FISUSDT | SHORT 5x, enter +30m, hold ≤480m, SL 10%, TP 20% | 2025-06-05T05:32:00+00:00 → 2025-06-05T13:32:00+00:00 | +0.121 | +121.27 |
 | 2025-06-05T05:00:18+00:00 | binance_monitoring_tag | MDTUSDT | SHORT 5x, enter +30m, hold ≤480m, SL 10%, TP 20% | 2025-06-05T05:32:00+00:00 → 2025-06-05T13:32:00+00:00 | -0.020 | -19.53 |
 | 2025-06-05T07:03:21+00:00 | upbit_krw_listing | RVNUSDT | SHORT 1x, enter +0m, hold ≤1380m, SL 5% | 2025-06-05T07:05:00+00:00 → 2025-06-05T07:06:00+00:00 | -0.054 | -54.18 |
@@ -319,13 +343,15 @@ Trades triggered by one notice move together, so the notice — not the trade �
 | 2025-08-12T07:30:00+00:00 | upbit_krw_listing | CYBERUSDT | SHORT 3x, enter +60m, hold ≤60m, SL 20% | 2025-08-12T08:31:00+00:00 → 2025-08-12T09:31:00+00:00 | -0.396 | -395.93 |
 | 2025-08-19T07:30:00+00:00 | upbit_krw_listing | API3USDT | SHORT 2x, enter +30m, hold ≤60m, SL 20% | 2025-08-19T08:01:00+00:00 → 2025-08-19T09:01:00+00:00 | -0.179 | -178.84 |
 | 2025-08-22T00:30:00+00:00 | upbit_krw_listing | AEROUSDT | SHORT 2x, enter +30m, hold ≤60m, SL 20% | 2025-08-22T01:01:00+00:00 → 2025-08-22T02:01:00+00:00 | +0.011 | +10.66 |
+| 2025-08-25T07:00:00+00:00 | upbit_caution | STGUSDT | LONG 5x, enter +60m, hold ≤480m, SL 10%, TP 10% | 2025-08-25T08:01:00+00:00 → 2025-08-25T16:01:00+00:00 | -0.067 | -66.98 |
+| 2025-08-25T07:00:00+00:00 | upbit_caution | ZROUSDT | LONG 5x, enter +60m, hold ≤480m, SL 10%, TP 10% | 2025-08-25T08:01:00+00:00 → 2025-08-25T16:01:00+00:00 | -0.049 | -49.41 |
 | 2025-08-28T05:00:00+00:00 | upbit_krw_listing | TREEUSDT | SHORT 2x, enter +30m, hold ≤60m, SL 20% | 2025-08-28T05:31:00+00:00 → 2025-08-28T06:31:00+00:00 | +0.021 | +21.00 |
 | 2025-08-29T11:00:12+00:00 | binance_perp_delisting | LEVERUSDT | LONG 5x, enter +5m, hold ≤60m, SL 10% | 2025-08-29T11:07:00+00:00 → 2025-08-29T11:10:00+00:00 | -0.518 | -518.24 |
 | 2025-09-01T01:49:05+00:00 | binance_spot_listing | WLFIUSDT | LONG 5x, enter +15m, hold ≤60m, SL 10%, TP 10% | 2025-09-01T02:06:00+00:00 → 2025-09-01T03:06:00+00:00 | +0.303 | +303.49 |
 | 2025-09-01T04:09:10+00:00 | upbit_krw_listing | WLFIUSDT | SHORT 2x, enter +30m, hold ≤60m, SL 20% | 2025-09-01T04:41:00+00:00 → 2025-09-01T05:41:00+00:00 | -0.053 | -52.74 |
 | 2025-09-03T02:59:54+00:00 | binance_spot_delisting | BAKEUSDT | LONG 5x, enter +0m, hold ≤60m, SL 5%, TP 20% | 2025-09-03T03:01:00+00:00 → 2025-09-03T03:02:00+00:00 | -0.269 | -269.12 |
 | 2025-09-03T02:59:54+00:00 | binance_spot_delisting | HIFIUSDT | LONG 5x, enter +0m, hold ≤60m, SL 5%, TP 20% | 2025-09-03T03:01:00+00:00 → 2025-09-03T03:03:00+00:00 | -0.269 | -269.12 |
-| 2025-09-05T07:45:00+00:00 | upbit_krw_listing | REDUSDT | SHORT 1x, enter +30m, hold ≤480m, SL 5%, TP 20% | 2025-09-05T08:16:00+00:00 → 2025-09-05T11:03:00+00:00 | -0.054 | -54.18 |
+| 2025-09-05T07:45:00+00:00 | upbit_krw_listing | REDUSDT | SHORT 2x, enter +30m, hold ≤60m, SL 20% | 2025-09-05T08:16:00+00:00 → 2025-09-05T09:16:00+00:00 | +0.153 | +153.05 |
 | 2025-09-09T10:21:09+00:00 | upbit_krw_listing | WLDUSDT | SHORT 2x, enter +30m, hold ≤60m, SL 20% | 2025-09-09T10:53:00+00:00 → 2025-09-09T11:53:00+00:00 | +0.006 | +5.82 |
 | 2025-09-10T04:22:36+00:00 | upbit_krw_listing | OPENUSDT | SHORT 2x, enter +30m, hold ≤60m, SL 20% | 2025-09-10T04:54:00+00:00 → 2025-09-10T05:54:00+00:00 | +0.096 | +95.98 |
 | 2025-09-10T07:40:05+00:00 | upbit_krw_listing | LINEAUSDT | SHORT 2x, enter +30m, hold ≤60m, SL 20% | 2025-09-10T08:12:00+00:00 → 2025-09-10T09:12:00+00:00 | +0.007 | +7.39 |
@@ -388,6 +414,7 @@ Trades triggered by one notice move together, so the notice — not the trade �
 | 2025-12-15T07:00:00+00:00 | upbit_krw_listing | WETUSDT | SHORT 2x, enter +30m, hold ≤60m, SL 35% | 2025-12-15T07:31:00+00:00 → 2025-12-15T08:31:00+00:00 | -0.194 | -193.59 |
 | 2025-12-26T04:15:00+00:00 | upbit_listing | YBUSDT | SHORT 3x, enter +0m, hold ≤1380m, SL 20% | 2025-12-26T04:16:00+00:00 → 2025-12-27T03:16:00+00:00 | +0.176 | +175.55 |
 | 2025-12-26T06:19:43+00:00 | upbit_krw_listing | ZKPUSDT | SHORT 2x, enter +30m, hold ≤60m, SL 35% | 2025-12-26T06:51:00+00:00 → 2025-12-26T07:51:00+00:00 | -0.101 | -101.04 |
+| 2025-12-27T12:50:00+00:00 | upbit_caution | FLOWUSDT | LONG 5x, enter +60m, hold ≤480m, SL 10%, TP 10% | 2025-12-27T13:51:00+00:00 → 2025-12-27T21:17:00+00:00 | +0.636 | +635.70 |
 | 2025-12-29T05:00:00+00:00 | upbit_warning | FLOWUSDT | SHORT 5x, enter +0m, hold ≤1380m, SL 10%, TP 20%, trail 10% | 2025-12-29T05:01:00+00:00 → 2025-12-30T04:01:00+00:00 | +0.269 | +268.80 |
 | 2026-01-02T10:59:57+00:00 | binance_monitoring_tag | FLOWUSDT | SHORT 5x, enter +0m, hold ≤1380m, SL 5% | 2026-01-02T11:01:00+00:00 → 2026-01-02T19:48:00+00:00 | -0.286 | -286.01 |
 | 2026-01-06T07:30:15+00:00 | upbit_krw_listing | ZKUSDT | SHORT 2x, enter +30m, hold ≤60m, SL 35% | 2026-01-06T08:02:00+00:00 → 2026-01-06T09:02:00+00:00 | -0.092 | -92.41 |
@@ -413,6 +440,7 @@ Trades triggered by one notice move together, so the notice — not the trade �
 | 2026-02-13T05:00:00+00:00 | upbit_delisting | LRCUSDT | SHORT 5x, enter +15m, hold ≤240m, SL 5% | 2026-02-13T05:16:00+00:00 → 2026-02-13T09:16:00+00:00 | +0.271 | +270.63 |
 | 2026-02-16T05:00:00+00:00 | upbit_krw_listing | TAOUSDT | SHORT 2x, enter +30m, hold ≤60m, SL 35% | 2026-02-16T05:31:00+00:00 → 2026-02-16T06:31:00+00:00 | +0.034 | +33.52 |
 | 2026-02-20T05:00:00+00:00 | upbit_krw_listing | AZTECUSDT | SHORT 2x, enter +30m, hold ≤60m, SL 35% | 2026-02-20T05:31:00+00:00 → 2026-02-20T06:31:00+00:00 | +0.036 | +36.28 |
+| 2026-02-21T10:40:03+00:00 | upbit_caution | IOTXUSDT | LONG 5x, enter +60m, hold ≤480m, SL 10%, TP 10% | 2026-02-21T11:42:00+00:00 → 2026-02-21T19:42:00+00:00 | +0.035 | +34.62 |
 | 2026-02-23T06:30:00+00:00 | upbit_warning | IOTXUSDT | SHORT 5x, enter +0m, hold ≤1380m, SL 10%, TP 20%, trail 10% | 2026-02-23T06:31:00+00:00 → 2026-02-23T10:02:00+00:00 | -0.419 | -418.55 |
 | 2026-02-24T05:00:00+00:00 | upbit_krw_listing | SKRUSDT | SHORT 2x, enter +30m, hold ≤60m, SL 35% | 2026-02-24T05:31:00+00:00 → 2026-02-24T06:31:00+00:00 | +0.074 | +73.82 |
 | 2026-02-24T06:04:04+00:00 | upbit_krw_listing | ESPUSDT | SHORT 2x, enter +30m, hold ≤60m, SL 35% | 2026-02-24T06:36:00+00:00 → 2026-02-24T07:36:00+00:00 | -0.170 | -170.00 |
@@ -445,15 +473,18 @@ Trades triggered by one notice move together, so the notice — not the trade �
 | 2026-03-18T09:00:08+00:00 | binance_spot_delisting | NTRNUSDT | SHORT 5x, enter +15m, hold ≤240m, SL 5%, TP 20% | 2026-03-18T09:17:00+00:00 → 2026-03-18T13:17:00+00:00 | +0.342 | +341.61 |
 | 2026-03-18T09:00:08+00:00 | binance_spot_delisting | RDNTUSDT | SHORT 5x, enter +15m, hold ≤240m, SL 5%, TP 20% | 2026-03-18T09:17:00+00:00 → 2026-03-18T09:43:00+00:00 | -0.271 | -270.88 |
 | 2026-03-18T09:00:08+00:00 | binance_spot_delisting | SXPUSDT | SHORT 5x, enter +15m, hold ≤240m, SL 5%, TP 20% | 2026-03-18T09:17:00+00:00 → 2026-03-18T13:17:00+00:00 | -0.020 | -20.03 |
-| 2026-03-19T02:50:00+00:00 | upbit_krw_listing | ETHFIUSDT | SHORT 1x, enter +30m, hold ≤60m, SL 35% | 2026-03-19T03:21:00+00:00 → 2026-03-19T04:21:00+00:00 | +0.030 | +29.71 |
+| 2026-03-19T02:50:00+00:00 | upbit_krw_listing | ETHFIUSDT | SHORT 2x, enter +30m, hold ≤60m, SL 35% | 2026-03-19T03:21:00+00:00 → 2026-03-19T04:21:00+00:00 | +0.059 | +59.41 |
+| 2026-03-22T04:40:00+00:00 | upbit_caution | RESOLVUSDT | LONG 5x, enter +60m, hold ≤480m, SL 10%, TP 10% | 2026-03-22T05:41:00+00:00 → 2026-03-22T13:41:00+00:00 | -0.087 | -87.26 |
 | 2026-03-23T06:00:00+00:00 | upbit_warning | RESOLVUSDT | SHORT 5x, enter +0m, hold ≤1380m, SL 10%, TP 20%, trail 10% | 2026-03-23T06:01:00+00:00 → 2026-03-24T05:01:00+00:00 | +0.451 | +451.03 |
 | 2026-03-26T08:07:50+00:00 | upbit_krw_listing | KATUSDT | SHORT 2x, enter +30m, hold ≤60m, SL 35% | 2026-03-26T08:39:00+00:00 → 2026-03-26T09:39:00+00:00 | +0.020 | +19.72 |
 | 2026-03-31T02:30:01+00:00 | upbit_krw_listing | SKYUSDT | SHORT 2x, enter +30m, hold ≤60m, SL 35% | 2026-03-31T03:02:00+00:00 → 2026-03-31T04:02:00+00:00 | +0.018 | +18.19 |
+| 2026-04-01T18:30:00+00:00 | upbit_caution | DRIFTUSDT | LONG 5x, enter +60m, hold ≤480m, SL 10%, TP 10% | 2026-04-01T19:31:00+00:00 → 2026-04-02T02:20:00+00:00 | -0.285 | -285.35 |
 | 2026-04-02T05:00:00+00:00 | upbit_warning | DRIFTUSDT | SHORT 5x, enter +0m, hold ≤1380m, SL 10%, TP 20%, trail 10% | 2026-04-02T05:01:00+00:00 → 2026-04-02T06:06:00+00:00 | -0.508 | -507.81 |
 | 2026-04-09T06:00:05+00:00 | binance_spot_delisting | FIOUSDT | SHORT 3x, enter +15m, hold ≤480m, SL 20%, TP 10% | 2026-04-09T06:17:00+00:00 → 2026-04-09T14:17:00+00:00 | +0.072 | +72.48 |
 | 2026-04-09T06:00:05+00:00 | binance_spot_delisting | FUNUSDT | SHORT 3x, enter +15m, hold ≤480m, SL 20%, TP 10% | 2026-04-09T06:17:00+00:00 → 2026-04-09T07:55:00+00:00 | +0.293 | +293.10 |
 | 2026-04-09T06:00:05+00:00 | binance_spot_delisting | MDTUSDT | SHORT 3x, enter +15m, hold ≤480m, SL 20%, TP 10% | 2026-04-09T06:17:00+00:00 → 2026-04-09T14:17:00+00:00 | -0.012 | -12.02 |
 | 2026-04-09T06:00:05+00:00 | binance_spot_delisting | OXTUSDT | SHORT 3x, enter +15m, hold ≤480m, SL 20%, TP 10% | 2026-04-09T06:17:00+00:00 → 2026-04-09T09:19:00+00:00 | +0.287 | +287.24 |
+| 2026-04-13T05:30:00+00:00 | upbit_caution | DOTUSDT | LONG 3x, enter +60m, hold ≤480m, SL 20%, TP 10% | 2026-04-13T06:31:00+00:00 → 2026-04-13T14:31:00+00:00 | -0.057 | -57.37 |
 | 2026-04-13T09:00:01+00:00 | upbit_warning | DOTUSDT | SHORT 5x, enter +0m, hold ≤1380m, SL 5%, TP 20%, trail 10% | 2026-04-13T09:02:00+00:00 → 2026-04-14T08:02:00+00:00 | -0.051 | -51.05 |
 | 2026-04-14T02:30:06+00:00 | binance_monitoring_tag | HIGHUSDT | SHORT 5x, enter +0m, hold ≤1380m, SL 5% | 2026-04-14T02:32:00+00:00 → 2026-04-15T01:32:00+00:00 | +0.106 | +106.25 |
 | 2026-04-14T02:30:06+00:00 | binance_monitoring_tag | MLNUSDT | SHORT 5x, enter +0m, hold ≤1380m, SL 5% | 2026-04-14T02:32:00+00:00 → 2026-04-14T02:33:00+00:00 | -0.271 | -270.88 |
@@ -463,10 +494,11 @@ Trades triggered by one notice move together, so the notice — not the trade �
 | 2026-04-14T02:30:06+00:00 | binance_monitoring_tag | VELODROMEUSDT | SHORT 5x, enter +0m, hold ≤1380m, SL 5% | 2026-04-14T02:32:00+00:00 → 2026-04-14T02:41:00+00:00 | -0.271 | -270.88 |
 | 2026-04-14T05:00:00+00:00 | upbit_krw_listing | CCUSDT | SHORT 2x, enter +30m, hold ≤60m, SL 35% | 2026-04-14T05:31:00+00:00 → 2026-04-14T06:31:00+00:00 | -0.022 | -21.66 |
 | 2026-04-14T07:48:40+00:00 | upbit_krw_listing | ZAMAUSDT | SHORT 2x, enter +30m, hold ≤60m, SL 35% | 2026-04-14T08:20:00+00:00 → 2026-04-14T09:20:00+00:00 | -0.058 | -57.74 |
-| 2026-04-17T05:00:02+00:00 | upbit_krw_listing | SOONUSDT | SHORT 1x, enter +30m, hold ≤60m, SL 35% | 2026-04-17T05:32:00+00:00 → 2026-04-17T06:32:00+00:00 | +0.009 | +9.30 |
+| 2026-04-17T05:00:02+00:00 | upbit_krw_listing | SOONUSDT | SHORT 2x, enter +30m, hold ≤60m, SL 35% | 2026-04-17T05:32:00+00:00 → 2026-04-17T06:32:00+00:00 | +0.019 | +18.59 |
 | 2026-04-17T09:00:06+00:00 | binance_spot_delisting | DEGOUSDT | SHORT 3x, enter +15m, hold ≤480m, SL 20%, TP 10% | 2026-04-17T09:17:00+00:00 → 2026-04-17T10:27:00+00:00 | +0.293 | +293.10 |
 | 2026-04-17T09:00:06+00:00 | binance_spot_delisting | DENTUSDT | SHORT 3x, enter +15m, hold ≤480m, SL 20%, TP 10% | 2026-04-17T09:17:00+00:00 → 2026-04-17T10:04:00+00:00 | +0.293 | +293.10 |
 | 2026-04-17T09:00:06+00:00 | binance_spot_delisting | TRUUSDT | SHORT 3x, enter +15m, hold ≤480m, SL 20%, TP 10% | 2026-04-17T09:17:00+00:00 → 2026-04-17T15:36:00+00:00 | +0.293 | +293.10 |
+| 2026-04-19T01:20:00+00:00 | upbit_caution | KERNELUSDT | LONG 3x, enter +60m, hold ≤480m, SL 20%, TP 10% | 2026-04-19T02:21:00+00:00 → 2026-04-19T10:21:00+00:00 | -0.323 | -323.43 |
 | 2026-04-20T05:00:00+00:00 | upbit_krw_listing | PIEVERSEUSDT | SHORT 2x, enter +30m, hold ≤60m, SL 35% | 2026-04-20T05:31:00+00:00 → 2026-04-20T06:31:00+00:00 | +0.511 | +510.61 |
 | 2026-04-20T08:00:00+00:00 | upbit_warning | KERNELUSDT | SHORT 5x, enter +0m, hold ≤1380m, SL 5%, TP 20%, trail 10% | 2026-04-20T08:01:00+00:00 → 2026-04-20T20:10:00+00:00 | +0.183 | +182.79 |
 | 2026-04-21T06:16:24+00:00 | upbit_krw_listing | CHIPUSDT | SHORT 2x, enter +30m, hold ≤60m, SL 35% | 2026-04-21T06:48:00+00:00 → 2026-04-21T07:48:00+00:00 | -0.348 | -347.70 |
@@ -503,6 +535,7 @@ Trades triggered by one notice move together, so the notice — not the trade �
 | 2026-05-22T08:00:04+00:00 | binance_monitoring_tag | SYNUSDT | SHORT 5x, enter +0m, hold ≤1380m, SL 5% | 2026-05-22T08:02:00+00:00 → 2026-05-23T07:02:00+00:00 | +0.170 | +170.39 |
 | 2026-05-22T08:00:04+00:00 | binance_monitoring_tag | TLMUSDT | SHORT 5x, enter +0m, hold ≤1380m, SL 5% | 2026-05-22T08:02:00+00:00 → 2026-05-23T07:02:00+00:00 | +0.464 | +463.99 |
 | 2026-05-29T07:30:00+00:00 | upbit_delisting | OXTUSDT | LONG 2x, enter +60m, hold ≤480m, SL 5% | 2026-05-29T08:31:00+00:00 → 2026-05-29T16:31:00+00:00 | -0.008 | -7.99 |
+| 2026-05-29T09:00:00+00:00 | upbit_krw_listing | IOUSDT | SHORT 1x, enter +30m, hold ≤60m, SL 35% | 2026-05-29T09:31:00+00:00 → 2026-05-29T10:31:00+00:00 | +0.024 | +24.34 |
 | 2026-06-05T07:00:07+00:00 | binance_spot_delisting | COSUSDT | SHORT 5x, enter +30m, hold ≤480m, SL 10%, TP 20%, trail 10% | 2026-06-05T07:32:00+00:00 → 2026-06-05T15:32:00+00:00 | +0.685 | +684.89 |
 | 2026-06-05T07:00:07+00:00 | binance_spot_delisting | HIGHUSDT | SHORT 5x, enter +30m, hold ≤480m, SL 10%, TP 20%, trail 10% | 2026-06-05T07:32:00+00:00 → 2026-06-05T15:32:00+00:00 | +0.547 | +547.02 |
 | 2026-06-05T07:00:07+00:00 | binance_spot_delisting | MBOXUSDT | SHORT 5x, enter +30m, hold ≤480m, SL 10%, TP 20%, trail 10% | 2026-06-05T07:32:00+00:00 → 2026-06-05T15:32:00+00:00 | +0.457 | +456.79 |
@@ -517,7 +550,6 @@ Trades triggered by one notice move together, so the notice — not the trade �
 | 2026-06-19T02:08:56+00:00 | upbit_listing | MORPHOUSDT | SHORT 3x, enter +0m, hold ≤1380m, SL 20% | 2026-06-19T02:10:00+00:00 → 2026-06-20T01:10:00+00:00 | +0.076 | +75.67 |
 | 2026-06-19T02:08:56+00:00 | upbit_listing | LDOUSDT | SHORT 3x, enter +0m, hold ≤1380m, SL 20% | 2026-06-19T02:10:00+00:00 → 2026-06-20T01:10:00+00:00 | +0.077 | +77.34 |
 | 2026-06-19T02:08:56+00:00 | upbit_listing | PAXGUSDT | SHORT 3x, enter +0m, hold ≤1380m, SL 20% | 2026-06-19T02:10:00+00:00 → 2026-06-20T01:10:00+00:00 | +0.005 | +4.80 |
-| 2026-06-19T09:00:02+00:00 | upbit_krw_listing | REUSDT | LONG 1x, enter +5m, hold ≤240m, SL 20%, TP 10% | 2026-06-19T09:07:00+00:00 → 2026-06-19T09:38:00+00:00 | +0.097 | +97.30 |
 | 2026-06-22T05:00:00+00:00 | upbit_warning | TAIKOUSDT | SHORT 5x, enter +0m, hold ≤1380m, SL 5%, TP 20%, trail 10% | 2026-06-22T05:01:00+00:00 → 2026-06-23T04:01:00+00:00 | +0.573 | +573.14 |
 | 2026-06-25T17:00:06+00:00 | binance_perp_delisting | IPUSDT | SHORT 2x, enter +5m, hold ≤240m, SL 20% | 2026-06-25T17:07:00+00:00 → 2026-06-25T21:07:00+00:00 | -0.212 | -212.42 |
 | 2026-06-26T09:00:15+00:00 | binance_spot_delisting | NFPUSDT | SHORT 5x, enter +30m, hold ≤480m, SL 10%, TP 20%, trail 10% | 2026-06-26T09:32:00+00:00 → 2026-06-26T10:24:00+00:00 | +0.001 | +1.22 |
@@ -527,6 +559,7 @@ Trades triggered by one notice move together, so the notice — not the trade �
 | 2026-07-03T08:00:00+00:00 | upbit_delisting | AERGOUSDT | LONG 2x, enter +60m, hold ≤480m, SL 5% | 2026-07-03T09:01:00+00:00 → 2026-07-03T11:40:00+00:00 | -0.108 | -107.65 |
 | 2026-07-07T04:39:48+00:00 | upbit_krw_listing | OPGUSDT | LONG 1x, enter +5m, hold ≤240m, SL 20%, TP 10% | 2026-07-07T04:46:00+00:00 → 2026-07-07T08:46:00+00:00 | -0.177 | -176.71 |
 | 2026-07-07T07:30:00+00:00 | upbit_warning | 1000BONKUSDT | SHORT 5x, enter +0m, hold ≤1380m, SL 5%, TP 20%, trail 10% | 2026-07-07T07:31:00+00:00 → 2026-07-08T06:31:00+00:00 | +0.282 | +282.26 |
+| 2026-07-11T08:45:00+00:00 | upbit_caution | HBARUSDT | LONG 1x, enter +60m, hold ≤480m, SL 10%, TP 10% | 2026-07-11T09:46:00+00:00 → 2026-07-11T17:46:00+00:00 | +0.005 | +5.22 |
 | 2026-07-17T07:30:01+00:00 | binance_spot_listing | AEROUSDT | LONG 2x, enter +0m, hold ≤480m, SL 5% | 2026-07-17T07:32:00+00:00 → 2026-07-17T13:36:00+00:00 | -0.107 | -106.94 |
 | 2026-07-21T14:15:14+00:00 | binance_perp_delisting | AERGOUSDT | SHORT 2x, enter +5m, hold ≤240m, SL 20% | 2026-07-21T14:22:00+00:00 → 2026-07-21T18:22:00+00:00 | -0.124 | -124.25 |
 | 2026-07-22T10:00:00+00:00 | upbit_warning | ZILUSDT | SHORT 5x, enter +0m, hold ≤1380m, SL 5%, TP 20%, trail 10% | 2026-07-22T10:01:00+00:00 → 2026-07-22T11:26:00+00:00 | -0.271 | -270.88 |
@@ -562,6 +595,7 @@ Trades triggered by one notice move together, so the notice — not the trade �
 | 2026-08-21T00:48:00+00:00 | upbit_listing | NILUSDT | SHORT 3x, enter +0m, hold ≤480m, SL 20% | 2026-08-21T00:49:00+00:00 → 2026-08-21T08:49:00+00:00 | -0.231 | -230.55 |
 | 2026-08-21T00:48:00+00:00 | upbit_listing | GWEIUSDT | SHORT 3x, enter +0m, hold ≤480m, SL 20% | 2026-08-21T00:49:00+00:00 → 2026-08-21T02:22:00+00:00 | -0.614 | -614.11 |
 | 2026-08-21T08:00:01+00:00 | upbit_warning | MANTRAUSDT | SHORT 5x, enter +0m, hold ≤1380m, SL 10%, TP 20%, trail 10% | 2026-08-21T08:02:00+00:00 → 2026-08-21T14:00:00+00:00 | -0.499 | -499.16 |
+| 2026-08-22T02:45:01+00:00 | upbit_caution | SANDUSDT | LONG 1x, enter +60m, hold ≤480m, SL 10%, TP 10% | 2026-08-22T03:47:00+00:00 → 2026-08-22T05:12:00+00:00 | -0.104 | -103.65 |
 | 2026-08-24T06:00:02+00:00 | upbit_warning | SANDUSDT | SHORT 5x, enter +0m, hold ≤1380m, SL 5%, TP 20%, trail 10% | 2026-08-24T06:02:00+00:00 → 2026-08-25T05:02:00+00:00 | +0.115 | +115.30 |
 | 2026-08-28T07:00:00+00:00 | upbit_delisting | SNXUSDT | SHORT 1x, enter +15m, hold ≤240m, SL 10%, trail 10% | 2026-08-28T07:16:00+00:00 → 2026-08-28T11:16:00+00:00 | -0.020 | -19.57 |
 | 2026-08-28T07:30:00+00:00 | upbit_warning | ICXUSDT | SHORT 5x, enter +0m, hold ≤1380m, SL 5%, TP 20%, trail 10% | 2026-08-28T07:31:00+00:00 → 2026-08-29T06:31:00+00:00 | -0.020 | -20.03 |
@@ -577,10 +611,9 @@ Trades triggered by one notice move together, so the notice — not the trade �
 | 2026-09-21T07:00:00+00:00 | upbit_warning | EGLDUSDT | SHORT 5x, enter +0m, hold ≤1380m, SL 5%, TP 20%, trail 10% | 2026-09-21T07:01:00+00:00 → 2026-09-21T10:49:00+00:00 | -0.273 | -273.47 |
 | 2026-09-22T06:00:08+00:00 | upbit_warning | SOPHUSDT | SHORT 5x, enter +0m, hold ≤1380m, SL 5%, TP 20%, trail 10% | 2026-09-22T06:02:00+00:00 → 2026-09-23T05:02:00+00:00 | +0.517 | +517.41 |
 | 2026-09-24T07:30:38+00:00 | binance_spot_listing | HYPEUSDT | LONG 1x, enter +5m, hold ≤480m, SL 10% | 2026-09-24T07:37:00+00:00 → 2026-09-24T15:37:00+00:00 | -0.020 | -19.60 |
+| 2026-10-02T07:00:00+00:00 | upbit_warning_lifted | SANDUSDT | SHORT 5x, enter +0m, hold ≤240m, SL 10% | 2026-10-02T07:01:00+00:00 → 2026-10-02T07:17:00+00:00 | -0.522 | -521.76 |
 | 2026-10-09T07:00:14+00:00 | binance_monitoring_tag | BICOUSDT | SHORT 5x, enter +0m, hold ≤1380m, SL 5% | 2026-10-09T07:02:00+00:00 → 2026-10-09T07:22:00+00:00 | -0.271 | -270.88 |
 | 2026-10-09T07:00:14+00:00 | binance_monitoring_tag | CVCUSDT | SHORT 5x, enter +0m, hold ≤1380m, SL 5% | 2026-10-09T07:02:00+00:00 → 2026-10-09T11:52:00+00:00 | -0.271 | -270.83 |
-| 2026-10-12T04:54:09+00:00 | upbit_krw_listing | RSRUSDT | LONG 1x, enter +5m, hold ≤240m, SL 20%, TP 10% | 2026-10-12T05:01:00+00:00 → 2026-10-12T09:01:00+00:00 | -0.002 | -1.85 |
-| 2026-10-12T10:00:00+00:00 | upbit_krw_listing | GTCUSDT | LONG 1x, enter +5m, hold ≤240m, SL 20%, TP 10% | 2026-10-12T10:06:00+00:00 → 2026-10-12T10:36:00+00:00 | +0.097 | +97.30 |
 | 2026-10-13T06:00:03+00:00 | upbit_warning | BLURUSDT | SHORT 5x, enter +0m, hold ≤1380m, SL 5%, TP 20%, trail 10% | 2026-10-13T06:02:00+00:00 → 2026-10-13T22:06:00+00:00 | +0.099 | +99.50 |
 | 2026-10-14T06:00:08+00:00 | binance_spot_delisting | EPICUSDT | SHORT 5x, enter +30m, hold ≤480m, SL 10%, TP 20%, trail 10% | 2026-10-14T06:32:00+00:00 → 2026-10-14T09:15:00+00:00 | +0.136 | +136.45 |
 | 2026-10-14T06:00:08+00:00 | binance_spot_delisting | QUICKUSDT | SHORT 5x, enter +30m, hold ≤480m, SL 10%, TP 20%, trail 10% | 2026-10-14T06:32:00+00:00 → 2026-10-14T14:32:00+00:00 | -0.020 | -20.03 |

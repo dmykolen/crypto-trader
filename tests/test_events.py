@@ -31,9 +31,10 @@ def events(source: str, title: str) -> list[tuple[EventType, str]]:
         ("원화 마켓 디지털 자산 추가 (AXS, STX, FLOW, DAWN)", [(EventType.UPBIT_KRW_LISTING, t) for t in ("AXS", "STX", "FLOW", "DAWN")]),
         ("하이브달러(HBD) 거래 유의 종목 지정 안내", [(EventType.UPBIT_WARNING, "HBD")]),
         ("만트라(MANTRA) 거래 유의 종목 지정 기간 연장 안내", []),
-        ("샌드박스(SAND) 거래 유의 종목 지정 해제 안내", []),
+        ("샌드박스(SAND) 거래 유의 종목 지정 해제 안내", [(EventType.UPBIT_WARNING_LIFTED, "SAND")]),
         ("질리카(ZIL) 거래지원 종료 안내 (11/16 15:00)", [(EventType.UPBIT_DELISTING, "ZIL")]),
-        ("왁스(WAXP) 유의 촉구 안내", []),
+        ("왁스(WAXP) 유의 촉구 안내", [(EventType.UPBIT_CAUTION, "WAXP")]),
+        ("원화 마켓 신규 상장 (엑시인피니티(AXS))", [(EventType.UPBIT_KRW_LISTING, "AXS")]),
     ],
 )
 def test_upbit(title, expected):

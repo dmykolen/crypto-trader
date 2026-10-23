@@ -93,6 +93,39 @@ def research_ticks(download: Annotated[bool, typer.Option(help="fetch tick windo
     _print({"fast_playbooks_by_latency": live, "by_latency_cap10k": by_latency})
 
 
+@research.command("proof")
+def research_proof(latency_s: Annotated[float, typer.Option(help="reaction time to replay")] = 1.0) -> None:
+    """Every walk-forward fast trade with its announcement link, tick prices and the Binance archive file that proves them."""
+    import numpy as np
+    import pandas as pd
+    from sqlmodel import select
+
+    from trader.models import NewsItem
+    from trader.services import fast, ticks
+
+    frame = pd.read_parquet(settings.reports_dir / "lab" / "tick_reactions_v2.parquet")
+    latency = ticks.as_latency(latency_s)
+    robust = np.nanmean(np.stack([ticks.outcome_matrix(frame, x) for x in fast.neighbourhood(latency)]), axis=0)
+    decisions = ticks.walk_forward(frame, latency, select_matrix=robust)
+    log = ticks.trade_log(frame, decisions, latency)
+    with Session(engine) as session:
+        urls = {i.title: i.url for i in session.exec(select(NewsItem).where(NewsItem.source.in_(["upbit", "binance"]))).all()}
+    log["announcement_url"] = log.title.map(urls)
+    path = settings.reports_dir / "lab" / f"proof_trades_L{latency}.csv"
+    log.to_csv(path, index=False)
+    account = ticks.account(decisions, cap_notional=10_000.0)
+    recent = decisions[pd.to_datetime(decisions.ts, unit="ms", utc=True) >= pd.Timestamp("2026-07-01", tz="UTC")]
+    holdout = ticks.account(recent, first="2026-07-01", cap_notional=10_000.0)
+    _print({
+        "csv": str(path),
+        "trades": len(log),
+        "winners": int((log.ret_on_margin > 0).sum()),
+        "losers": int((log.ret_on_margin <= 0).sum()),
+        "account_cap10k": account,
+        "holdout_cap10k": holdout,
+    })
+
+
 @research.command("review")
 def research_review(name: str = "event_research") -> None:
     """Claude reviews a research report for overfitting, cost sensitivity and failure modes."""

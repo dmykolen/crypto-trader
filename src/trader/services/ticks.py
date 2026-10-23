@@ -101,6 +101,25 @@ def reactions(df: pd.DataFrame, ts: int, fill_s: float = 0.5) -> dict:
     return out
 
 
+def flow(df: pd.DataFrame, ts: int, latency: float) -> dict:
+    t = df.transact_time.to_numpy(np.int64)
+    p = df.price.to_numpy(np.float64)
+    usd = p * df.quantity.to_numpy(np.float64)
+    taker_buy = ~df.is_buyer_maker.to_numpy(bool)
+    start, now_, before = int(np.searchsorted(t, ts)), int(np.searchsorted(t, ts + latency * 1000, side="right")), int(np.searchsorted(t, ts - 60_000))
+    window = slice(start, now_)
+    total = float(usd[window].sum())
+    rate_before = (start - before) / 60.0
+    logret = np.diff(np.log(p[before:start])) if start - before > 2 else np.zeros(1)
+    return {
+        f"flow_n_{latency}": now_ - start,
+        f"flow_usd_{latency}": total,
+        f"flow_buy_{latency}": float(usd[window][taker_buy[window]].sum()) / total if total > 0 else 0.5,
+        f"flow_accel_{latency}": ((now_ - start) / latency) / (rate_before + 1.0 / 60.0),
+        "vol_before": float(logret.std()),
+    }
+
+
 def restudy(fill_s: float = 0.5) -> pd.DataFrame:
     base = pd.read_parquet(settings.reports_dir / "lab" / "tick_reactions.parquet")[["type", "symbol", "ts", "time", "title"]]
     rows = []
@@ -111,7 +130,9 @@ def restudy(fill_s: float = 0.5) -> pd.DataFrame:
         df = pd.read_parquet(path)
         if df.empty:
             continue
-        rows.append(row._asdict() | reactions(df, int(row.ts), fill_s))
+        cleaned = clean(df)
+        features = {k: v for latency in LATENCIES_S for k, v in flow(cleaned, int(row.ts), latency).items()}
+        rows.append(row._asdict() | reactions(df, int(row.ts), fill_s) | features)
     frame = pd.DataFrame(rows).sort_values("ts", ignore_index=True)
     frame.to_parquet(settings.reports_dir / "lab" / "tick_reactions_v2.parquet", index=False)
     return frame
@@ -174,29 +195,40 @@ def outcome_matrix(frame: pd.DataFrame, latency: float, fee: float = 0.0005, sli
     return out
 
 
-def walk_forward(frame: pd.DataFrame, latency: float, z: float = 1.0, min_history: int = 10, slip: float | None = None) -> pd.DataFrame:
+def walk_forward(
+    frame: pd.DataFrame, latency: float, z: float = 1.0, min_history: int = 10, slip: float | None = None, top_k: int = 1, select_matrix: np.ndarray | None = None
+) -> pd.DataFrame:
     matrix = outcome_matrix(frame, latency, slip=slip)
+    chooser = matrix if select_matrix is None else select_matrix
     rows = []
     gap = (max(HOLDS_S) + max(LATENCIES_S)) * 1000
     for etype in sorted(frame.type.unique()):
         idx = np.flatnonzero(frame.type.to_numpy() == etype)
         ts = frame.ts.to_numpy()[idx]
-        growth = np.log1p(np.clip(np.nan_to_num(matrix[idx], nan=0.0), -0.99, None))
+        growth = np.log1p(np.clip(np.nan_to_num(chooser[idx], nan=0.0), -0.99, None))
         zero = np.zeros((1, growth.shape[1]))
         total, total2 = np.vstack([zero, np.cumsum(growth, axis=0)]), np.vstack([zero, np.cumsum(growth**2, axis=0)])
         for k, i in enumerate(idx):
             known = int(np.searchsorted(ts, ts[k] - gap, side="right"))
-            best, _ = playbooks._select_running(total[known], total2[known], known, z) if known >= min_history else (None, None)
-            ret = None if best is None or np.isnan(matrix[i, best]) else float(matrix[i, best])
+            picks: list[int] = []
+            if known >= min_history:
+                mean = total[known] / known
+                score = mean - z * np.sqrt(np.maximum(total2[known] - known * mean**2, 0.0) / (known - 1) / known)
+                order = np.argsort(-score)[:top_k]
+                picks = [int(j) for j in order if score[j] > 0]
+            rets = [matrix[i, j] for j in picks if not np.isnan(matrix[i, j])]
+            ret = float(np.mean(rets)) if rets else None
+            best = picks[0] if picks else None
             rows.append({
                 "i": int(i),
                 "type": etype,
                 "ts": int(frame.ts.iat[i]),
                 "symbol": frame.symbol.iat[i],
                 "known": known,
+                "j": best,
                 "candidate": describe(CANDIDATES[best]) if best is not None else None,
                 "hold_s": CANDIDATES[best][1] if best is not None else None,
-                "lev": CANDIDATES[best][2] if best is not None else None,
+                "lev": max(CANDIDATES[j][2] for j in picks) if picks else None,
                 "ret": ret,
             })
     return pd.DataFrame(rows).sort_values("ts", ignore_index=True)
@@ -235,6 +267,81 @@ def latency_report(frame: pd.DataFrame, holdout: str = "2026-07-01", caps: tuple
                 }
         report[str(latency)] = row
     return report
+
+
+def meta_filter(frame: pd.DataFrame, decisions: pd.DataFrame, latency: float, threshold: float = 0.5, min_train: int = 60, refit_every: int = 10) -> pd.DataFrame:
+    import lightgbm as lgb
+
+    columns = [f"pre_{latency}", f"flow_n_{latency}", f"flow_usd_{latency}", f"flow_buy_{latency}", f"flow_accel_{latency}", "vol_before"]
+    types = sorted(frame.type.unique())
+    taken = decisions.dropna(subset=["ret"]).sort_values("ts")
+    X = frame.loc[taken.i, columns].to_numpy(np.float64)
+    X = np.column_stack([X, np.array([types.index(t) for t in frame.loc[taken.i, "type"]])])
+    y = (taken.ret.to_numpy() > 0).astype(int)
+    ts = taken.ts.to_numpy()
+    gap = (max(HOLDS_S) + max(LATENCIES_S)) * 1000
+    keep = np.ones(len(taken), dtype=bool)
+    model, trained_on = None, -1
+    for k in range(len(taken)):
+        known = int(np.searchsorted(ts, ts[k] - gap, side="right"))
+        if known < min_train:
+            continue
+        if model is None or known - trained_on >= refit_every:
+            model = lgb.LGBMClassifier(n_estimators=150, learning_rate=0.05, num_leaves=7, min_child_samples=10, subsample=0.8, subsample_freq=1, verbose=-1)
+            model.fit(X[:known], y[:known], categorical_feature=[X.shape[1] - 1])
+            trained_on = known
+        keep[k] = model.predict_proba(X[k : k + 1])[0, 1] >= threshold
+    out = decisions.copy()
+    out.loc[taken.index[~keep], "ret"] = None
+    return out
+
+
+def _iso_ms(ms: int) -> str:
+    return datetime.fromtimestamp(ms / 1000, UTC).isoformat(timespec="milliseconds")
+
+
+def trade_log(frame: pd.DataFrame, decisions: pd.DataFrame, latency: float, fill_s: float = 0.5) -> pd.DataFrame:
+    rows = []
+    for d in decisions.dropna(subset=["ret"]).itertuples(index=False):
+        side, hold, lev, stop, tp = CANDIDATES[int(d.j)]
+        event = frame.iloc[int(d.i)]
+        ts = int(event.ts)
+        ticks_ = clean(pd.read_parquet(settings.data_dir / "ticks" / event.symbol / f"{ts}.parquet"))
+        t, p = ticks_.transact_time.to_numpy(np.int64), ticks_.price.to_numpy(np.float64)
+        i0, i1 = int(np.searchsorted(t, ts + latency * 1000)), int(np.searchsorted(t, ts + (latency + fill_s) * 1000, side="right"))
+        j0, j1 = int(np.searchsorted(t, ts + (latency + hold) * 1000)), int(np.searchsorted(t, ts + (latency + hold + fill_s) * 1000, side="right"))
+        entry_window, exit_window = p[i0 : max(i1, i0 + 1)], p[j0 : max(j1, j0 + 1)]
+        k_entry = i0 + int(np.argmax(entry_window) if side > 0 else np.argmin(entry_window))
+        k_exit = j0 + int(np.argmin(exit_window) if side > 0 else np.argmax(exit_window))
+        path = p[i0 : max(j1, j0 + 1)]
+        entry, exit_ = p[k_entry], p[k_exit]
+        favorable = path.max() / entry - 1 if side > 0 else 1 - path.min() / entry
+        adverse = 1 - path.min() / entry if side > 0 else path.max() / entry - 1
+        day = datetime.fromtimestamp(ts / 1000, UTC).strftime("%Y-%m-%d")
+        rows.append({
+            "announced": _iso_ms(ts),
+            "type": event.type,
+            "symbol": event.symbol,
+            "title": event.title,
+            "side": "LONG" if side > 0 else "SHORT",
+            "leverage": lev,
+            "hold_s": hold,
+            "stop": stop,
+            "take_profit": tp,
+            "entry_time": _iso_ms(int(t[k_entry])),
+            "entry_price": entry,
+            "exit_time": _iso_ms(int(t[k_exit])),
+            "exit_price": exit_,
+            "price_move_for_side": side * (exit_ / entry - 1),
+            "max_favorable": favorable,
+            "max_adverse": adverse,
+            "stop_hit": bool(stop > 0 and adverse >= stop),
+            "take_profit_hit": bool(tp > 0 and favorable >= tp and not (stop > 0 and adverse >= stop)),
+            "liquidated": bool(adverse >= liquidation_distance(lev, side) and not (stop > 0 and adverse >= stop)),
+            "ret_on_margin": d.ret,
+            "archive": f"https://data.binance.vision/data/futures/um/daily/aggTrades/{event.symbol}/{event.symbol}-aggTrades-{day}.zip",
+        })
+    return pd.DataFrame(rows)
 
 
 def _account(decisions: pd.DataFrame, fraction: float, notice_cap: float, capital: float, first: str, last: str, cap_notional: float | None) -> dict:
