@@ -73,8 +73,12 @@ def saved() -> dict:
 
 
 def live() -> dict[EventType, list[tuple[float, FastPlaybook]]]:
+    return to_live(saved().get("by_latency", {}))
+
+
+def to_live(by_latency: dict[str, dict[str, dict]]) -> dict[EventType, list[tuple[float, FastPlaybook]]]:
     out: dict[EventType, list[tuple[float, FastPlaybook]]] = {}
-    for latency, types in saved().get("by_latency", {}).items():
+    for latency, types in by_latency.items():
         for etype, entry in types.items():
             if entry.get("playbook"):
                 out.setdefault(EventType(etype), []).append((float(latency), FastPlaybook(**entry["playbook"])))

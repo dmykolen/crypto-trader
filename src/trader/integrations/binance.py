@@ -101,6 +101,22 @@ class FuturesREST:
             return response.json()
         raise RuntimeError(f"Binance REST kept rate-limiting {path}")
 
+    def agg_trades(self, symbol: str, start_ms: int, end_ms: int) -> pd.DataFrame:
+        rows: list[dict] = []
+        params: dict = {"symbol": symbol, "startTime": start_ms, "endTime": min(end_ms, start_ms + 3_599_999), "limit": 1000}
+        while True:
+            batch = self._get("/fapi/v1/aggTrades", **params) or []
+            rows += [r for r in batch if r["T"] < end_ms]
+            if len(batch) < 1000 or batch[-1]["T"] >= end_ms:
+                break
+            params = {"symbol": symbol, "fromId": batch[-1]["a"] + 1, "limit": 1000}
+        return pd.DataFrame({
+            "price": [float(r["p"]) for r in rows],
+            "quantity": [float(r["q"]) for r in rows],
+            "transact_time": [int(r["T"]) for r in rows],
+            "is_buyer_maker": [bool(r["m"]) for r in rows],
+        })
+
     def exchange_info(self) -> dict:
         return self._get("/fapi/v1/exchangeInfo")
 

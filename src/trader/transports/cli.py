@@ -126,6 +126,29 @@ def research_proof(latency_s: Annotated[float, typer.Option(help="reaction time 
     })
 
 
+@app.command()
+def replay(
+    day: Annotated[str, typer.Argument(help="first UTC day to replay, YYYY-MM-DD")],
+    days: Annotated[int, typer.Option(help="number of days")] = 1,
+) -> None:
+    """Run the real trading loop over past days: every notice, order and exit on historical tick and minute prices, playbooks learned only from earlier events."""
+    from datetime import UTC, datetime
+
+    from trader.services import replay as replay_service
+
+    create_db_and_tables()
+    doc = asyncio.run(replay_service.replay(datetime.fromisoformat(day).replace(tzinfo=UTC), days))
+    out = settings.reports_dir / "replay"
+    out.mkdir(parents=True, exist_ok=True)
+    (out / f"{day}_{days}d.json").write_text(json.dumps(doc, indent=2, default=str))
+    (out / f"{day}_{days}d.md").write_text(replay_service.markdown(doc))
+    _print({
+        "report": str(out / f"{day}_{days}d.md"),
+        "notices": len(doc["notices"]),
+        **{name: {k: s[k] for k in ("trades", "winners", "pnl", "final_equity", "max_drawdown_pct", "days_with_100_or_more")} for name, s in doc["scenarios"].items()},
+    })
+
+
 @research.command("review")
 def research_review(name: str = "event_research") -> None:
     """Claude reviews a research report for overfitting, cost sensitivity and failure modes."""

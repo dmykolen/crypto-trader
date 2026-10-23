@@ -50,6 +50,8 @@ def window(symbol: str, ts: int) -> pd.DataFrame | None:
         df = pd.read_csv(io.BytesIO(body), header=None if body[:1].isdigit() else 0, names=NAMES, usecols=["price", "quantity", "transact_time", "is_buyer_maker"])
         del body, raw
         frames.append(df[(df.transact_time >= lo) & (df.transact_time < hi)])
+    if not frames and datetime.now(UTC).timestamp() * 1000 - lo < 2 * 86_400_000 - 60_000:
+        frames.append(binance.FuturesREST().agg_trades(symbol, lo, hi))
     df = (
         pd.concat(frames, ignore_index=True).sort_values("transact_time", ignore_index=True)
         if frames

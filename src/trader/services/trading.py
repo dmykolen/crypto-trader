@@ -229,7 +229,10 @@ class Trader:
             log.info("no tradable perpetual for %s", event.token)
             return None
         enter_at = event.notice.published_at + timedelta(seconds=settings.entry_latency_s, minutes=playbook.delay_min)
-        task = asyncio.create_task(self._enter_at(enter_at, symbol, playbook, f"{event.type.value}: {playbook.describe()}", news_id))
+        return self._schedule_entry(enter_at, symbol, playbook, f"{event.type.value}: {playbook.describe()}", news_id)
+
+    def _schedule_entry(self, at: datetime, symbol: str, pb: playbooks.Playbook, trigger: str, news_id: str | None) -> asyncio.Task | None:
+        task = asyncio.create_task(self._enter_at(at, symbol, pb, trigger, news_id))
         self._tasks.add(task)
         task.add_done_callback(self._tasks.discard)
         return task
@@ -345,6 +348,7 @@ class Trader:
                     margin=margin,
                     quantity=fill.qty,
                     entry_price=fill.price,
+                    entry_time=now(),
                     stop_price=fill.price * (1 - side * stop) if stop else None,
                     take_profit_price=fill.price * (1 + side * take_profit) if take_profit else None,
                     trail=trail,
@@ -372,7 +376,7 @@ class Trader:
                 active = self._open_trades(session)
                 for t in active:
                     price = await self.broker.price(t.symbol)
-                    reason = exit_reason(t, price, now(), paper=self.mode == "paper")
+                    reason = exit_reason(t, price, now(), paper=self.mode != "live")
                     if reason:
                         await self._close(t, price, reason)
                     else:

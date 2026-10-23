@@ -371,6 +371,10 @@ def saved() -> dict:
     return json.loads(path.read_text()) if path.exists() else {}
 
 
+def to_live(fitted: dict[str, dict]) -> dict[EventType, Playbook]:
+    return {EventType(k): Playbook(**v["playbook"]) for k, v in fitted.items() if v.get("playbook")}
+
+
 def live_playbooks() -> dict[EventType, Playbook]:
     """Playbooks the trader uses, by event type."""
-    return {EventType(k): Playbook(**v["playbook"]) for k, v in saved().get("types", {}).items() if v.get("playbook")}
+    return to_live(saved().get("types", {}))
