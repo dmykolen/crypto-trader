@@ -28,9 +28,9 @@ SessionDep = Annotated[Session, Depends(get_session)]
 
 
 def create_db_and_tables() -> None:
-    from trader.models import NewsItem, Trade
+    from trader.models import IntelSignal, NewsItem, Trade
 
-    tables = [NewsItem.__table__, Trade.__table__]
+    tables = [NewsItem.__table__, Trade.__table__, IntelSignal.__table__]
     try:
         SQLModel.metadata.create_all(engine, tables=tables)
     except OperationalError as exc:

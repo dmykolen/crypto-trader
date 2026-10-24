@@ -11,10 +11,24 @@ from sqlmodel import Session
 from trader.core.config import settings
 from trader.core.db import create_db_and_tables, engine
 from trader.core.logging import configure_logging
+from trader.intel.cli import app as intel_app
+from trader.quant.cli import quant as quant_app
 
 app = typer.Typer(no_args_is_help=True, help="AI-assisted crypto research & trading for Binance USDⓈ-M perpetuals.")
 research = typer.Typer(no_args_is_help=True, help="Learn strategies from history (out-of-sample) and write reports.")
 app.add_typer(research, name="research")
+app.add_typer(quant_app, name="quant")
+app.add_typer(intel_app, name="intel")
+
+
+@app.command("bots")
+def bots_list() -> None:
+    """The trading bots of this app and how to run each one."""
+    from trader.bots import BOTS
+
+    _print([{"bot": f"#{b.number} {b.name}", "key": b.key, "what": b.what, "commands": list(b.commands)} for b in BOTS])
+
+
 console = Console()
 
 

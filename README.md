@@ -72,6 +72,35 @@ Continuous strategies on majors (`reports/strategy_selection.md`, 1 year, 15m ba
 | trading loop with risk rails (margin fraction, max positions, per-announcement cap, daily loss stop, stale-notice guard); paper broker or ccxt live | `services/{trading,broker}.py`, `integrations/exchange.py` |
 | HTTP: `/health`, `/ready`, `/metrics`, `/api/v1/{news,trades,portfolio,playbooks,reports/{name},forecast/{symbol},analyze,brief/{symbol}}` | `transports/http/`, `main.py` |
 
+## News & market intelligence (`trader intel`, `src/trader/intel/`)
+
+Many sources → tagged, entity-linked items → hourly per-perp signals that bots can join to 1h bars.
+
+```bash
+uv run trader intel sources        # health table: 18 media RSS, Binance/Upbit/Bybit/OKX/KuCoin boards, blogs, Reddit, numeric series
+uv run trader intel fetch          # one pass → NewsItem rows, series caches, IntelSignal rows (--llm adds budgeted Claude analysis)
+uv run trader intel watch          # poll forever (text every 60 s, numeric series every 15th pass)
+uv run trader intel signals SOLUSDT  # last 72 h of mentions/polarity/categories + the latest feature row
+uv run trader intel backfill       # resumable history: Fear & Greed, Wikipedia, Binance metrics archive (OI, long/short), GDELT
+uv run trader intel retag          # re-run rule tagging + linking on every stored item and rebuild signals
+uv run trader intel study          # out-of-sample study → reports/intel_study.{md,json}
+```
+
+`trader.intel.signals.features(symbol, start, end)` returns an hourly frame indexed like the 1h panel: news mentions,
+burst z, polarity, category counts, market-wide attention, Fear & Greed, OI / long-short ratios, Wikipedia / GDELT z.
+A row with open_time t only uses information available at that bar's close (daily series are lagged until published).
+Backfill caches live in `data/intel/` (series parquet + one metrics parquet per perp); days that keep failing are
+logged and retried by the next run, 404 days (not listed yet / delisted) are remembered.
+
+**Study result (`reports/intel_study.md`, 26 perps, 1.02 M symbol-hours, signs fixed on 2022-01 → 2024-06, scored
+once on 2024-07 → 2026-09, Holm-corrected, 5 bps per unit turnover): no intel signal is a tradeable edge.**
+OI change, the top-trader position ratio and the Fear & Greed level have Holm-significant rank ICs out of sample
+(signed IC +0.01 … +0.16), but — exactly like the short-term-reversal and funding references — every rule built
+from them loses after costs (test net −0.7 … −29 bps/day). Exchange-announcement mention counts, bursts and Wikipedia attention are only unadjusted-significant; headline
+polarity, account ratios, taker ratio and market-wide news volume fail. Caveats: the 2022–2026 text history is almost
+all Binance/Upbit announcements (media feeds only go back weeks), and GDELT throttled this host, so `gdelt_z` is
+unscored. Use these as context features, not as standalone triggers.
+
 ## Configuration
 
 All settings come from env / `.env` (see `.env.example`). The important ones:
