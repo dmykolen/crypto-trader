@@ -141,3 +141,17 @@ uv run prek run --all-files
 Layout follows the team service architecture: `core/` (config, db, logging, metrics), `models/`, `services/`,
 `integrations/`, `ai/`, `transports/{cli.py,http/}`, `main.py`. Docker: `docker build -t trader .` (non-root, state
 lives in the `/data` volume).
+
+
+## Bot #2 «Квант» (market-neutral book)
+
+```bash
+uv run trader bots                          # the bots of this app
+uv run trader quant research                # features + labels for every liquid perp → walk-forward model → policy report
+uv run trader quant neutral                 # market-neutral books from the model ranking (chosen on 2023-07…2024-12)
+uv run trader quant book 2026-09-29         # the book held on a day: every long/short, weight, move, P&L on $1000
+uv run trader quant day SOLUSDT 2026-10-22  # one pair, one day: hourly view of what the model saw and did
+uv run trader quant day XUSDT --csv q.csv   # the same on your own quotes (time, open, high, low, close[, volume])
+uv run trader quant forward 2026-10-01      # forward test on days no model saw (fresh quotes from Binance)
+uv run trader quant paper --loop            # paper-trade the book: rebalance daily at 00:15 UTC, ledger in data/quant/paper/
+```

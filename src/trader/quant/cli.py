@@ -117,3 +117,17 @@ def forward_test(
     doc = live.forward(first, last)
     _show({k: doc[k] for k in ("model", "symbols_scored", "period", "stats", "days")})
     console.print(f"book for {doc['book_for_next_day']['decided_at']}: {len(doc['book_for_next_day']['longs'])} longs, {len(doc['book_for_next_day']['shorts'])} shorts")
+
+
+@quant.command("paper")
+def paper_trade(
+    loop: Annotated[bool, typer.Option(help="keep running: rebalance every day at 00:15 UTC")] = False,
+    capital: Annotated[float, typer.Option(help="starting paper equity, USDT")] = 1000.0,
+) -> None:
+    """Paper-trade the market-neutral book: mark yesterday's positions to market, rebalance to today's book, log the equity."""
+    from trader.quant import paper
+
+    if loop:
+        paper.loop(capital)
+    else:
+        _show(paper.step(capital))
