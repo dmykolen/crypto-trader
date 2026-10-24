@@ -102,3 +102,18 @@ def book_day(when: Annotated[str, typer.Argument(help="UTC day, YYYY-MM-DD (2023
     _show(doc)
     for r in sorted(rows, key=lambda x: -abs(x["pnl"]))[:15]:
         console.print(f"{r['side']:5} {r['symbol']:16} weight {r['weight_pct']:+6.2f}%  day {r['day_return_pct']:+7.2f}%  P&L ${r['pnl']:+8.2f}")
+
+
+@quant.command("forward")
+def forward_test(
+    start: Annotated[str, typer.Argument(help="first UTC day of the forward test, YYYY-MM-DD")] = "2026-10-01",
+    end: Annotated[str, typer.Argument(help="last UTC day (default: yesterday)")] = "",
+) -> None:
+    """Forward test on days the models never saw: fresh 1h quotes of every liquid perp → features → final model → the market-neutral book, day by day."""
+    from trader.quant import live
+
+    first = datetime.fromisoformat(start).replace(tzinfo=UTC)
+    last = datetime.fromisoformat(end).replace(tzinfo=UTC) if end else None
+    doc = live.forward(first, last)
+    _show({k: doc[k] for k in ("model", "symbols_scored", "period", "stats", "days")})
+    console.print(f"book for {doc['book_for_next_day']['decided_at']}: {len(doc['book_for_next_day']['longs'])} longs, {len(doc['book_for_next_day']['shorts'])} shorts")

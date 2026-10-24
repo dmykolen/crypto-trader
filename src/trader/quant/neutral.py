@@ -29,6 +29,11 @@ def _xrank(frame: pd.DataFrame) -> pd.DataFrame:
     return frame.rank(axis=1, pct=True)
 
 
+def blend(xs7: pd.DataFrame, edge: pd.DataFrame) -> pd.DataFrame:
+    edge = edge.reindex(index=xs7.index, columns=xs7.columns)
+    return (xs7.rank(axis=1, pct=True) + edge.rank(axis=1, pct=True)) / 2
+
+
 def all_scores(p: Panel, preds: pd.DataFrame) -> dict[str, pd.DataFrame]:
     base = daily_scores(preds, 23)
     hours = [_xrank(daily_scores(preds, h)["edge"]) for h in (5, 11, 17, 23)]
@@ -36,7 +41,13 @@ def all_scores(p: Panel, preds: pd.DataFrame) -> dict[str, pd.DataFrame]:
     multi = multi.where(hours[-1].notna())
     mom30 = _xrank((p.c / p.c.shift(30) - 1).reindex(index=base["edge"].index, columns=base["edge"].columns))
     edge = _xrank(base["edge"])
-    return {
+    xs_path = model.root() / "xs_predictions.parquet"
+    extra = {}
+    if xs_path.exists():
+        xs = pd.read_parquet(xs_path)
+        xs7 = xs.pivot_table(index=(xs.open_time // DAY * DAY), columns="symbol", values="score", aggfunc="last")
+        extra = {"xs7": xs7, "blend": blend(xs7, base["edge"])}
+    return extra | {
         "edge": base["edge"],
         "edge_multi": multi,
         "edge+mom30": (edge + mom30.fillna(0.5)).where(edge.notna()) / 2,
@@ -89,12 +100,24 @@ def book_returns(p: Panel, score: pd.DataFrame, book: Book) -> pd.Series:
     return weights_returns(p, book_weights(p, score, book))
 
 
-ENSEMBLE = {"family": "edge", "k": (5, 10, 20), "hold_days": (5, 7, 10, 14), "weighting": ("equal", "inverse_vol"), "gross": 2.0}
+ENSEMBLE = {"family": "blend", "k": (5, 10, 20), "hold_days": (5, 7, 10, 14), "weighting": ("equal", "inverse_vol"), "gross": 2.0, "per_side": 30}
 
 
 def ensemble_weights(p: Panel, scores: dict[str, pd.DataFrame], config: dict = ENSEMBLE) -> pd.DataFrame:
     books = [Book(k, h, config["gross"], config["family"], wt) for k, h, wt in product(config["k"], config["hold_days"], config["weighting"])]
-    return sum(book_weights(p, scores[config["family"]], b) for b in books) / len(books)
+    w = sum(book_weights(p, scores[config["family"]], b) for b in books) / len(books)
+    return compress(w, config["per_side"]) if config.get("per_side") else w
+
+
+def compress(w: pd.DataFrame, per_side: int) -> pd.DataFrame:
+    """Keep the `per_side` largest longs and shorts of a book, resized so each side keeps its gross."""
+    longs = w.where(w > 0)
+    shorts = w.where(w < 0)
+    keep_l = longs.where(longs.rank(axis=1, ascending=False) <= per_side).fillna(0.0)
+    keep_s = shorts.where(shorts.rank(axis=1, ascending=True) <= per_side).fillna(0.0)
+    scale_l = (longs.sum(axis=1) / keep_l.sum(axis=1).replace(0, np.nan)).fillna(0.0)
+    scale_s = (shorts.sum(axis=1) / keep_s.sum(axis=1).replace(0, np.nan)).fillna(0.0)
+    return keep_l.mul(scale_l, axis=0) + keep_s.mul(scale_s, axis=0)
 
 
 def day_view(day_ms: int, capital: float = 1000.0, config: dict = ENSEMBLE) -> dict:

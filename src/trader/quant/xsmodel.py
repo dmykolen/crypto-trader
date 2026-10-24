@@ -1,0 +1,114 @@
+import json
+import logging
+from concurrent.futures import ThreadPoolExecutor
+
+import lightgbm as lgb
+import numpy as np
+import pandas as pd
+
+from trader.core.config import settings
+from trader.quant import model, neutral, trend
+from trader.quant.neutral import ENSEMBLE
+from trader.quant.trend import DAY, DEV_END, DEV_START, END, stats
+
+log = logging.getLogger(__name__)
+HOUR = 3_600_000
+DECISION_HOUR = 23
+PARAMS = {
+    "objective": "regression",
+    "learning_rate": 0.03,
+    "num_leaves": 15,
+    "min_data_in_leaf": 1000,
+    "feature_fraction": 0.5,
+    "bagging_fraction": 0.7,
+    "bagging_freq": 1,
+    "lambda_l2": 10.0,
+    "verbose": -1,
+    "num_threads": 16,
+}
+
+
+def _rows(path, horizon_h: int) -> pd.DataFrame | None:
+    df = pd.read_parquet(path)
+    df = df[(df.open_time % DAY) == DECISION_HOUR * HOUR]
+    if df.empty:
+        return None
+    bars = pd.read_parquet(model.root() / "bars" / path.name, columns=["open_time", "close"]).set_index("open_time").close
+    now = bars.reindex(df.open_time.to_numpy()).to_numpy()
+    later = bars.reindex(df.open_time.to_numpy() + horizon_h * HOUR).to_numpy()
+    df = df.drop(columns=["y_long", "y_short"]).assign(fwd=np.log(later / now))
+    return df[np.isfinite(df.fwd)]
+
+
+def dataset(horizon_h: int = 168) -> pd.DataFrame:
+    paths = sorted((model.root() / "panel").glob("*.parquet"))
+    with ThreadPoolExecutor(12) as pool:
+        frames = [f for f in pool.map(lambda p: _rows(p, horizon_h), paths) if f is not None]
+    df = pd.concat(frames, ignore_index=True)
+    df["y"] = df.groupby("open_time").fwd.rank(pct=True) - 0.5
+    df["symbol"] = df.symbol.astype("category")
+    return df
+
+
+def walk_forward(horizon_h: int = 168) -> pd.DataFrame:
+    df = dataset(horizon_h)
+    names = [c for c in df.columns if c not in ("open_time", "symbol", "fwd", "y")]
+    t = df.open_time.to_numpy()
+    out = []
+    folder = model.root() / "xs_models"
+    folder.mkdir(parents=True, exist_ok=True)
+    for lo, hi in model.quarters():
+        train = t + (horizon_h + 24) * HOUR < lo
+        test = (t >= lo) & (t < hi)
+        if not test.any() or train.sum() < 10_000:
+            continue
+        order = np.argsort(t[train], kind="stable")
+        cut = t[train][order[int(len(order) * 0.85)]]
+        fit_rows, valid_rows = train & (t < cut), train & (t >= cut + (horizon_h + 24) * HOUR)
+        booster = lgb.train(
+            PARAMS,
+            lgb.Dataset(df.loc[fit_rows, names], df.y[fit_rows]),
+            1500,
+            valid_sets=[lgb.Dataset(df.loc[valid_rows, names], df.y[valid_rows])],
+            callbacks=[lgb.early_stopping(100, verbose=False)],
+        )
+        booster.save_model(str(folder / f"xs_{lo}.txt"))
+        out.append(
+            pd.DataFrame({"symbol": df.symbol[test].astype(str).to_numpy(), "open_time": t[test], "score": booster.predict(df.loc[test, names]), "fwd": df.fwd[test].to_numpy()})
+        )
+        log.warning("xs quarter %s: %d train rows, %d trees", pd.Timestamp(lo, unit="ms").date(), int(fit_rows.sum()), booster.best_iteration)
+    preds = pd.concat(out, ignore_index=True)
+    preds.to_parquet(model.root() / "xs_predictions.parquet", index=False)
+    full = df
+    booster = lgb.train(PARAMS, lgb.Dataset(full[names], full.y), max(50, int(np.median([b for b in [booster.best_iteration]]))))
+    booster.save_model(str(folder / "xs_final.txt"))
+    return preds
+
+
+def study(horizon_h: int = 168) -> dict:
+    preds = walk_forward(horizon_h)
+    p = trend.load_panel()
+    score = preds.pivot_table(index=(preds.open_time // DAY * DAY), columns="symbol", values="score", aggfunc="last")
+    ic = score.rank(axis=1).corrwith(p.r.shift(-1).reindex(index=score.index, columns=score.columns).rank(axis=1), axis=1).dropna()
+    fwd = preds.pivot_table(index=(preds.open_time // DAY * DAY), columns="symbol", values="fwd", aggfunc="last")
+    ic7 = score.rank(axis=1).corrwith(fwd.rank(axis=1), axis=1).dropna()
+    doc = {
+        "ic_next_day": {"dev": round(float(ic[ic.index < DEV_END].mean()), 4), "holdout": round(float(ic[ic.index >= DEV_END].mean()), 4)},
+        "ic_7d": {
+            "dev": round(float(ic7[ic7.index < DEV_END].mean()), 4),
+            "holdout": round(float(ic7[ic7.index >= DEV_END].mean()), 4),
+            "holdout_t": round(float(ic7[ic7.index >= DEV_END].mean() / ic7[ic7.index >= DEV_END].std() * np.sqrt(len(ic7[ic7.index >= DEV_END]) / 7)), 2),
+        },
+        "books": {},
+    }
+    for name, config in (("xs7 ensemble, 30/side", {**ENSEMBLE, "family": "xs7"}), ("xs7 ensemble, full", {**ENSEMBLE, "family": "xs7", "per_side": None})):
+        w = neutral.ensemble_weights(p, {"xs7": score}, config)
+        ret = neutral.weights_returns(p, w)
+        doc["books"][name] = {"dev": stats(ret, DEV_START, DEV_END), "holdout": stats(ret, DEV_END, END)}
+    edge = neutral.daily_scores(pd.read_parquet(model.root() / "predictions.parquet"), DECISION_HOUR)["edge"]
+    blend = (score.rank(axis=1, pct=True) + edge.reindex(index=score.index, columns=score.columns).rank(axis=1, pct=True)) / 2
+    w = neutral.ensemble_weights(p, {"blend": blend}, {**ENSEMBLE, "family": "blend"})
+    ret = neutral.weights_returns(p, w)
+    doc["books"]["xs7 + edge blend, 30/side"] = {"dev": stats(ret, DEV_START, DEV_END), "holdout": stats(ret, DEV_END, END)}
+    (settings.reports_dir / "quant" / "xs7.json").write_text(json.dumps(doc, indent=2, default=str))
+    return doc
