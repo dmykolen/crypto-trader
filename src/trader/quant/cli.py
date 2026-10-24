@@ -72,3 +72,33 @@ def day(
     target = datetime.fromisoformat(when).replace(tzinfo=UTC) if when else None
     doc = asyncio.run(asyncio.to_thread(day_replay.replay, symbol.upper(), target, csv, theta))
     _show({k: doc[k] for k in ("symbol", "day", "model", "policy", "summary", "report", "chart")})
+
+
+@quant.command("trend")
+def trend_study() -> None:
+    """Daily trend-following portfolios (momentum, EMA crosses, Donchian, SuperTrend, ensembles) on the most liquid perps, walk-forward."""
+    from trader.quant import trend
+
+    doc = trend.study()
+    _show({k: doc[k] for k in ("symbols", "configs", "best_on_dev", "walk_forward_top1", "walk_forward_top3", "holdout_share_positive")})
+
+
+@quant.command("neutral")
+def neutral_study() -> None:
+    """Market-neutral books from the model's ranking: long the best-ranked perps, short the worst, overlapping holds; chosen on 2023-07…2024-12."""
+    from trader.quant import neutral
+
+    doc = neutral.study()
+    _show({k: doc[k] for k in ("ic", "best_on_dev", "leverage", "holdout_share_positive")})
+
+
+@quant.command("book")
+def book_day(when: Annotated[str, typer.Argument(help="UTC day, YYYY-MM-DD (2023-07-02 … 2026-09-30)")]) -> None:
+    """The market-neutral book held on a day: every long and short, its weight, the day's move and the P&L on $1000."""
+    from trader.quant import neutral
+
+    doc = neutral.day_view(int(datetime.fromisoformat(when).replace(tzinfo=UTC).timestamp() * 1000))
+    rows = doc.pop("table")
+    _show(doc)
+    for r in sorted(rows, key=lambda x: -abs(x["pnl"]))[:15]:
+        console.print(f"{r['side']:5} {r['symbol']:16} weight {r['weight_pct']:+6.2f}%  day {r['day_return_pct']:+7.2f}%  P&L ${r['pnl']:+8.2f}")

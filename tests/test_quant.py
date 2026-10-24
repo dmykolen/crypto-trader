@@ -79,3 +79,21 @@ def test_quotes_from_a_csv_in_15_minute_bars_become_hourly_bars(tmp_path):
     first = bars.iloc[0]
     assert (first.open, first.high, first.low, first.close, first.volume) == (100.0, 104.0, 99.0, 103.5, 4.0)
     assert int(bars.open_time.iat[1]) - int(bars.open_time.iat[0]) == HOUR
+
+
+def test_a_market_neutral_book_is_flat_on_net_and_spends_its_gross_on_the_extremes_of_the_ranking():
+    from trader.quant.neutral import Book, book_weights
+    from trader.quant.trend import Panel
+
+    days = pd.RangeIndex(0, 40 * 86_400_000, 86_400_000)
+    symbols = [f"S{i}" for i in range(12)]
+    rng = np.random.default_rng(7)
+    close = pd.DataFrame(100 * np.cumprod(1 + rng.normal(0, 0.02, (40, 12)), axis=0), index=days, columns=symbols)
+    panel = Panel(days.to_numpy(), np.array(symbols), close, close, close, close, close * 0 + 1e8, close * 0, close.pct_change())
+    score = pd.DataFrame(np.tile(np.arange(12, dtype=float), (40, 1)), index=days, columns=symbols)
+    w = book_weights(panel, score, Book(k=3, hold_days=1, gross=2.0, score="x", weighting="equal"))
+    last = w.iloc[-1]
+    assert last.sum() == pytest.approx(0.0)
+    assert last.abs().sum() == pytest.approx(2.0)
+    assert set(last[last > 0].index) == {"S9", "S10", "S11"}
+    assert set(last[last < 0].index) == {"S0", "S1", "S2"}
