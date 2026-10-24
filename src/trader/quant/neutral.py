@@ -88,10 +88,19 @@ def book_weights(p: Panel, score: pd.DataFrame, book: Book) -> pd.DataFrame:
     return w.rolling(book.hold_days, min_periods=1).mean() if book.hold_days > 1 else w
 
 
-def weights_returns(p: Panel, w: pd.DataFrame) -> pd.Series:
+def weights_returns(p: Panel, w: pd.DataFrame, stop: float | None = None) -> pd.Series:
     r_next = p.r.shift(-1).fillna(0.0)
+    stopped = pd.DataFrame(False, index=w.index, columns=w.columns)
+    if stop:
+        base = p.c
+        gap = (p.o.shift(-1) / base - 1).fillna(0.0)
+        up = (p.h.shift(-1) / base - 1).fillna(0.0)
+        down = (p.low.shift(-1) / base - 1).fillna(0.0)
+        long_hit, short_hit = (w > 0) & (down <= -stop), (w < 0) & (up >= stop)
+        r_next = r_next.mask(long_hit, np.minimum(gap, -stop)).mask(short_hit, np.maximum(gap, stop))
+        stopped = long_hit | short_hit
     pnl = (w * r_next).sum(axis=1)
-    turnover = (w - w.shift(1).fillna(0.0)).abs().sum(axis=1)
+    turnover = (w - w.shift(1).fillna(0.0)).abs().sum(axis=1) + 2 * w.abs().where(stopped, 0.0).sum(axis=1)
     funding = (w * p.funding.shift(-1).fillna(0.0)).sum(axis=1)
     return (pnl - COST * turnover - funding).shift(1).fillna(0.0)
 
