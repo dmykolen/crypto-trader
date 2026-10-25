@@ -1,0 +1,304 @@
+@import "tailwindcss";
+@import "@fontsource/fira-sans-extra-condensed/700.css";
+@import "@fontsource/fira-sans-extra-condensed/800.css";
+@import "@fontsource/fira-sans-extra-condensed/900.css";
+@import "@fontsource/fira-sans/400.css";
+@import "@fontsource/fira-sans/500.css";
+@import "@fontsource/fira-sans/600.css";
+@import "@fontsource/fira-sans/700.css";
+@import "@fontsource-variable/jetbrains-mono/wght.css";
+
+@theme inline {
+  --font-head: "Fira Sans Extra Condensed", "Arial Narrow", ui-sans-serif, sans-serif;
+  --font-body: "Fira Sans", "Apple SD Gothic Neo", "Noto Sans KR", "PingFang SC", ui-sans-serif, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+  --color-paper: var(--paper);
+  --color-shade: var(--shade);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-rule: var(--rule);
+  --color-gain: var(--gain);
+  --color-loss: var(--loss);
+  --color-live: var(--live);
+  --color-notice: var(--notice);
+  --color-quant: var(--quant);
+  --color-lab: var(--lab);
+}
+
+:root {
+  --paper: #f2f2ee;
+  --shade: #e7e7e1;
+  --ink: #141414;
+  --ink-2: #45453f;
+  --ink-3: #5f5f58;
+  --rule: #bfbfb4;
+  --gain: #0a7445;
+  --loss: #b3261e;
+  --live: #8f5000;
+  --notice: #1d3d9f;
+  --quant: #69308c;
+  --lab: #45453f;
+  --heavy: var(--ink);
+  --wet-strength: 26%;
+}
+
+:root[data-edition="night"] {
+  --paper: #121311;
+  --shade: #1b1c19;
+  --ink: #e9e9e3;
+  --ink-2: #b5b5ac;
+  --ink-3: #8c8c84;
+  --rule: #34352f;
+  --gain: #3dba7f;
+  --loss: #f26a56;
+  --live: #f0a33a;
+  --notice: #8aa2ff;
+  --quant: #c896e6;
+  --lab: #b5b5ac;
+  --heavy: #a3a39a;
+  --wet-strength: 30%;
+}
+
+@layer base {
+  html {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.42;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    caret-color: var(--notice);
+    accent-color: var(--ink);
+    scrollbar-color: var(--rule) transparent;
+    scrollbar-width: thin;
+  }
+  body {
+    min-height: 100vh;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--quant) 28%, transparent);
+    color: var(--ink);
+  }
+  :focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+  a {
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--rule);
+    border: 3px solid var(--paper);
+    border-radius: 6px;
+  }
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+  p,
+  li,
+  figcaption {
+    text-wrap: pretty;
+  }
+}
+
+@layer components {
+  .head {
+    font-family: var(--font-head);
+    letter-spacing: -0.01em;
+    line-height: 1.02;
+  }
+  .num {
+    font-variant-numeric: tabular-nums lining-nums;
+    font-feature-settings: "tnum" 1, "lnum" 1;
+  }
+  .rule-heavy {
+    border-top: 3px solid var(--heavy);
+  }
+  .rule-double {
+    border-top: 4px solid var(--heavy);
+    box-shadow: 0 3px 0 -2px var(--paper), 0 4px 0 -2px var(--heavy);
+  }
+  .rule {
+    border-top: 1px solid var(--rule);
+  }
+  .colrule {
+    border-left: 1px solid var(--rule);
+  }
+  .agate {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+  .agate th {
+    font-weight: 600;
+    font-size: 11.5px;
+    text-align: left;
+    color: var(--ink-2);
+    padding: 4px 8px 4px 0;
+    border-bottom: 1px solid var(--ink);
+    white-space: nowrap;
+  }
+  .agate td {
+    padding: 3px 8px 3px 0;
+    border-bottom: 1px solid color-mix(in oklab, var(--rule) 70%, transparent);
+    vertical-align: baseline;
+  }
+  .agate tr:hover td {
+    background: color-mix(in oklab, var(--shade) 70%, transparent);
+  }
+  .agate .r {
+    text-align: right;
+  }
+  .agate tbody tr.sub td {
+    font-family: var(--font-head);
+    font-size: 14px;
+    font-weight: 700;
+    border-bottom: 1px solid var(--ink-3);
+    padding-top: 10px;
+    background: transparent;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 12px;
+    font-weight: 600;
+    font-size: 13px;
+    border: 1px solid var(--ink);
+    background: var(--ink);
+    color: var(--paper);
+    border-radius: 2px;
+    transition: background-color 160ms cubic-bezier(0.16, 1, 0.3, 1), color 160ms cubic-bezier(0.16, 1, 0.3, 1), opacity 160ms;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--ink) 82%, var(--paper));
+  }
+  .btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  .btn-ghost {
+    background: transparent;
+    color: var(--ink);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background: var(--shade);
+  }
+  .btn-live {
+    background: transparent;
+    color: var(--live);
+    border-color: var(--live);
+  }
+  .btn-live:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--live) 12%, transparent);
+  }
+  .field {
+    height: 30px;
+    padding: 0 8px;
+    border: 1px solid var(--rule);
+    background: var(--paper);
+    border-radius: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+  .field::-webkit-inner-spin-button,
+  .field::-webkit-outer-spin-button {
+    appearance: none;
+    margin: 0;
+  }
+  .field[type="number"] {
+    appearance: textfield;
+  }
+  .field:focus {
+    border-color: var(--ink);
+    outline: none;
+  }
+  .live-hatch {
+    background-image: repeating-linear-gradient(-45deg, color-mix(in oklab, var(--live) 20%, transparent) 0 5px, transparent 5px 11px);
+  }
+  .wet {
+    animation: wet-ink 7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .press-in {
+    animation: press-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .progress-run {
+    animation: progress-run 1.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  }
+}
+
+@keyframes progress-run {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+
+.switching *,
+.switching *::before,
+.switching *::after {
+  transition: none !important;
+}
+
+@keyframes wet-ink {
+  0% {
+    background-color: color-mix(in oklab, var(--wet, var(--ink)) var(--wet-strength), transparent);
+    filter: blur(0.3px);
+  }
+  12% {
+    filter: blur(0);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@keyframes press-in {
+  from {
+    transform: translateY(-6px);
+    opacity: 0.35;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@media (pointer: coarse), (max-width: 640px) {
+  .btn,
+  .field {
+    min-height: 40px;
+  }
+  nav a {
+    padding-block: 9px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wet {
+    animation-duration: 2.5s;
+  }
+  .press-in {
+    animation: none;
+  }
+  .progress-run {
+    animation: none;
+    transform: none;
+    opacity: 0.6;
+  }
+}

@@ -53,3 +53,5 @@ data_pre/
 .impeccable/mocks/
 web/node_modules/
 web/dist/
+.impeccable/config.local.json
+web/*.tsbuildinfo

@@ -29,7 +29,7 @@ uv run trader forecast SOLUSDT --interval 1h       # multi-horizon forecast with
 uv run trader brief SOLUSDT                        # Claude desk brief (regime, forecast, playbooks, news)
 uv run trader analyze-news "Binance Will Delist X"  # rule events + Claude price-impact assessment
 uv run trader run                                  # news watcher + paper trader
-uv run trader serve                                # HTTP API (RUN_WATCHER=true also runs the trader inside it)
+uv run trader serve                                # API + web control room on http://127.0.0.1:8710
 ```
 
 ## Results (out-of-sample, `reports/event_research.md`)
@@ -156,3 +156,30 @@ uv run trader quant day XUSDT --csv q.csv   # the same on your own quotes (time,
 uv run trader quant forward 2026-10-01      # forward test on days no model saw (fresh quotes from Binance)
 uv run trader quant paper --loop            # paper-trade the book: rebalance daily at 00:15 UTC, ledger in data/quant/paper/
 ```
+
+
+## Web control room (`web/`, served by `trader serve`)
+
+```bash
+cd web && pnpm install && pnpm build && cd ..   # once, and after UI changes
+uv run trader serve                             # http://127.0.0.1:8710 — localhost only
+```
+
+A market-page desk for both bots, in Ukrainian, day and night editions:
+
+* **Огляд** — each bot's state, figures and controls side by side, the activity tape (notices, trades, rebalances,
+  tests), the Quant book marked to Binance prices, and the evidence strip for every test period.
+* **Анонси / Квант** — per-bot pages: playbooks by entry latency, the notice journal, trades; the paper account's
+  equity, the full book, the rebalance history and the production configuration.
+* **Лабораторія** — historical tests run as background jobs that survive page reloads: the Quant book on any
+  2021–2026 period with your parameters, the book of a single day, a forward test on fresh quotes, a replay of the
+  notice bot over past days, quarterly retraining and the evidence rebuild. Results come with equity, drawdown,
+  monthly returns and the final book.
+* **Докази** — the production book's equity 2021–2026 on a log scale, period by period, and what in it is clean and
+  what is optimistic.
+* **Система** — processes, logs, model freshness, and how to enable real trading.
+
+Bots start and stop from the UI. Paper is the default; real money needs Binance API keys in `.env` and the typed
+phrase `LIVE NOTICE` / `LIVE QUANT` in a confirmation that states the bot's real-money limits. The API only answers
+on localhost and state changes need the UI's own header. Dev server with hot reload: `cd web && pnpm dev`
+(proxies `/api` to `trader serve`). UI checks: `cd web && pnpm typecheck && pnpm test`. Design system: `DESIGN.md`.

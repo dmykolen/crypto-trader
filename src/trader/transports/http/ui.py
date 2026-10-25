@@ -20,6 +20,7 @@ from trader.status import notice_bot, quant_bot
 
 router = APIRouter(prefix="/api/v1", tags=["ui"])
 BotKey = Literal["notice", "quant"]
+BOT_MODES = ("paper", "live")
 _prices: dict[str, Any] = {"at": 0.0, "data": {}}
 
 
@@ -51,6 +52,18 @@ def system_info() -> dict:
         "models_trained_at": meta.get("trained_at"),
         "next_retrain_due": "2027-01-02",
         "next_quant_rebalance": _next_rebalance(datetime.now(UTC)),
+        "risk": risk_limits(),
+    }
+
+
+def risk_limits() -> dict:
+    """The real-money rails each bot runs under, read from the same settings and limits the bots use."""
+    from trader.quant import live_exec
+
+    quant = live_exec.Limits()
+    return {
+        "notice": {"margin_fraction": settings.margin_fraction, "max_leverage": settings.max_leverage, "max_open_positions": settings.max_open_positions},
+        "quant": {"leverage": quant.leverage, "max_gross": quant.max_gross, "max_position": quant.max_position, "kill_drawdown": quant.kill_drawdown},
     }
 
 
@@ -61,65 +74,46 @@ def _bots() -> list[dict]:
     ]
 
 
+def _iso(at: datetime) -> str:
+    return (at if at.tzinfo else at.replace(tzinfo=UTC)).isoformat()
+
+
 def _events(limit: int = 40) -> list[dict]:
+    """The activity tape as structured facts; the UI does all wording and number formatting."""
     create_db_and_tables()
     out: list[dict] = []
     with Session(engine) as session:
         for item in session.exec(select(NewsItem).where(col(NewsItem.source).in_(["binance", "upbit"])).order_by(col(NewsItem.published_at).desc()).limit(limit)):
-            kinds = [e.get("type") for e in item.events or [] if e.get("type")]
             out.append({
-                "at": item.published_at.isoformat(),
+                "at": _iso(item.published_at),
                 "bot": "notice",
                 "kind": "notice",
                 "title": item.title,
-                "detail": ", ".join(kinds) or "без торгової події",
-                "tone": "info" if kinds else "quiet",
                 "source": item.source,
+                "events": [{"type": e["type"], "symbols": e.get("symbols") or ([e["symbol"]] if e.get("symbol") else [])} for e in item.events or [] if e.get("type")],
             })
-        for trade in session.exec(select(Trade).order_by(col(Trade.entry_time).desc()).limit(limit)):
-            side = "лонг" if trade.side > 0 else "шорт"
-            out.append({
-                "at": trade.entry_time.isoformat(),
-                "bot": "notice",
-                "kind": "trade_open",
-                "title": f"{trade.symbol}: відкрито {side} ({trade.mode})",
-                "detail": trade.trigger,
-                "tone": "info",
-            })
+        for trade in session.exec(select(Trade).where(col(Trade.mode).in_(BOT_MODES)).order_by(col(Trade.entry_time).desc()).limit(limit)):
+            base = {"bot": "notice", "symbol": trade.symbol, "side": "long" if trade.side > 0 else "short", "mode": trade.mode, "trigger": trade.trigger}
+            out.append({**base, "at": _iso(trade.entry_time), "kind": "trade_open"})
             if trade.exit_time:
-                pnl = trade.pnl or 0.0
-                tone = "gain" if pnl > 0 else "loss"
-                out.append({
-                    "at": trade.exit_time.isoformat(),
-                    "bot": "notice",
-                    "kind": "trade_close",
-                    "title": f"{trade.symbol}: закрито, {pnl:+.2f} USDT",
-                    "detail": trade.exit_reason or "",
-                    "tone": tone,
-                })
+                out.append({**base, "at": _iso(trade.exit_time), "kind": "trade_close", "pnl": trade.pnl or 0.0, "exit_reason": trade.exit_reason})
     ledger = paper.ledger_path()
     if ledger.exists():
-        for row in json.loads(ledger.read_text())["history"][-limit:]:
-            pnl = row.get("pnl_since_last", 0.0)
+        history = json.loads(ledger.read_text())["history"]
+        for i, row in list(enumerate(history))[-limit:]:
             out.append({
                 "at": row["rebalanced_at"],
                 "bot": "quant",
                 "kind": "rebalance",
-                "title": f"Ребаланс: {row['longs']} лонгів / {row['shorts']} шортів",
-                "detail": f"P&L з попереднього {pnl:+.2f} USDT · витрати {row['cost']:.2f} · капітал {row['equity']:.2f}",
-                "tone": "gain" if pnl > 0 else "loss" if pnl < 0 else "info",
+                "opening": i == 0,
+                "longs": row["longs"],
+                "shorts": row["shorts"],
+                "pnl": row.get("pnl_since_last", 0.0),
+                "cost": row["cost"],
+                "equity": row["equity"],
             })
     for job in jobs.listing(15):
-        stamp = job.get("finished_at") or job.get("created_at")
-        out.append({
-            "at": stamp,
-            "bot": "lab",
-            "kind": "job",
-            "title": job["title"],
-            "detail": job["status"],
-            "tone": {"done": "info", "failed": "loss"}.get(job["status"], "quiet"),
-            "job": job["id"],
-        })
+        out.append({"at": job.get("finished_at") or job.get("created_at"), "bot": "lab", "kind": "job", "title": job["title"], "status": job["status"], "job": job["id"]})
     out.sort(key=lambda e: e["at"] or "", reverse=True)
     return out[:limit]
 
@@ -232,6 +226,32 @@ def quant_evidence() -> dict:
     if doc is None:
         raise HTTPException(404, "evidence not built yet — start the job «quant_evidence»")
     return doc
+
+
+@router.get("/notice/trades")
+def notice_trades(limit: Annotated[int, Query(ge=1, le=1000)] = 200) -> list[dict]:
+    """The bot's paper and live trades together (replay simulations excluded), newest first, with explicit UTC timestamps."""
+    create_db_and_tables()
+    with Session(engine) as session:
+        rows = session.exec(select(Trade).where(col(Trade.mode).in_(BOT_MODES)).order_by(col(Trade.entry_time).desc()).limit(limit)).all()
+    return [{**t.model_dump(), **{k: _iso(v) for k in ("entry_time", "exit_due", "exit_time") if (v := getattr(t, k)) is not None}} for t in rows]
+
+
+@router.get("/notice/daily")
+def notice_daily(days: Annotated[int, Query(ge=1, le=90)] = 14) -> list[dict]:
+    """Announcements per UTC day, and how many of them carried a tradable event — the notice bot's daily workload."""
+    create_db_and_tables()
+    first = datetime.now(UTC).date() - timedelta(days=days - 1)
+    since = datetime(first.year, first.month, first.day, tzinfo=UTC)
+    counts = {first + timedelta(days=i): [0, 0] for i in range(days)}
+    with Session(engine) as session:
+        rows = session.exec(select(NewsItem).where(col(NewsItem.source).in_(["binance", "upbit"]), col(NewsItem.published_at) >= since))
+        for item in rows:
+            day = datetime.fromisoformat(_iso(item.published_at)).date()
+            if day in counts:
+                counts[day][0] += 1
+                counts[day][1] += any(e.get("type") for e in item.events or [])
+    return [{"day": day.isoformat(), "total": total, "events": events} for day, (total, events) in counts.items()]
 
 
 @router.get("/notice/feed")

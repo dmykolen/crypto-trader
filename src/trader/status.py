@@ -1,4 +1,5 @@
 import json
+from datetime import UTC
 
 from sqlmodel import Session, select
 
@@ -25,7 +26,7 @@ def notice_bot(mode: str = "paper") -> dict:
                 "symbol": t.symbol,
                 "side": "LONG" if t.side > 0 else "SHORT",
                 "trigger": t.trigger,
-                "entry_time": t.entry_time.isoformat(timespec="seconds"),
+                "entry_time": (t.entry_time if t.entry_time.tzinfo else t.entry_time.replace(tzinfo=UTC)).isoformat(timespec="seconds"),
                 "status": t.status,
                 "pnl": None if t.pnl is None else round(t.pnl, 2),
             }

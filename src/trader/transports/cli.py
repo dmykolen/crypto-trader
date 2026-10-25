@@ -225,8 +225,13 @@ def run() -> None:
 
 
 @app.command()
-def serve(host: str = "127.0.0.1", port: int = 8000) -> None:
-    """Start the HTTP API (RUN_WATCHER=true also runs the trading loop inside it)."""
+def serve(host: str = "127.0.0.1", port: int = 8710) -> None:
+    """Start the API and the web control room on http://127.0.0.1:8710 (RUN_WATCHER=true also runs the trading loop inside it)."""
     import uvicorn
 
+    from trader.main import WEB_DIST
+
+    if not (WEB_DIST / "index.html").exists():
+        console.print("[yellow]web UI is not built: cd web && pnpm install && pnpm build[/yellow]")
+    console.print(f"control room: http://{host}:{port}")
     uvicorn.run("trader.main:app", host=host, port=port)
