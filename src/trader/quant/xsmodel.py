@@ -78,7 +78,7 @@ def dataset(horizon_h: int = 168, version: str = "xs7") -> pd.DataFrame:
     return df
 
 
-def walk_forward(horizon_h: int = 168, version: str = "xs7", target: str = "rank") -> pd.DataFrame:
+def walk_forward(horizon_h: int = 168, version: str = "xs7", target: str = "rank", first: str = "2023-07-01", last_exclusive: str = "2026-10-01") -> pd.DataFrame:
     df = dataset(horizon_h, version)
     names = [c for c in df.columns if c not in NOT_FEATURES]
     params = PARAMS
@@ -90,7 +90,7 @@ def walk_forward(horizon_h: int = 168, version: str = "xs7", target: str = "rank
     out = []
     folder = model.root() / ("xs_models" if version == "xs7" else f"{version}_models")
     folder.mkdir(parents=True, exist_ok=True)
-    for lo, hi in model.quarters():
+    for lo, hi in model.quarters(first, last_exclusive):
         train = t + (horizon_h + 24) * HOUR < lo
         test = (t >= lo) & (t < hi)
         if not test.any() or train.sum() < 10_000:

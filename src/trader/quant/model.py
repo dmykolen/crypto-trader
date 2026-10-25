@@ -52,7 +52,7 @@ def _btc() -> pd.DataFrame:
     return pd.read_parquet(universe_dir() / "BTCUSDT.parquet")
 
 
-def build_symbol(symbol: str, geometry: Geometry, min_daily_volume: float) -> int:
+def build_symbol(symbol: str, geometry: Geometry, min_daily_volume: float, start: int = START) -> int:
     bars = pd.read_parquet(universe_dir() / f"{symbol}.parquet").sort_values("open_time", ignore_index=True)
     if len(bars) < WARMUP + geometry.horizon + 200:
         return 0
@@ -64,10 +64,10 @@ def build_symbol(symbol: str, geometry: Geometry, min_daily_volume: float) -> in
     t = bars.open_time.to_numpy(np.int64)
     live = np.isfinite(a) & (a / c >= MIN_ATR_PCT) & np.isfinite(y_long) & np.isfinite(y_short)
     stable = symbol.removesuffix("USDT") in STABLES
-    eligible = (daily >= min_daily_volume) & (np.arange(len(bars)) >= WARMUP) & (t >= START) & live & (not stable)
+    eligible = (daily >= min_daily_volume) & (np.arange(len(bars)) >= WARMUP) & (t >= start) & live & (not stable)
     if eligible.sum() < 300:
         return 0
-    keep = t >= START
+    keep = t >= start
     sim = pd.DataFrame({"open_time": t, "open": o, "high": h, "low": low, "close": c, "atr": a, "funding": bars.funding.fillna(0.0).to_numpy(), "eligible": eligible})[keep]
     rows = f.loc[t[eligible]].reset_index(names="open_time")
     rows["y_long"], rows["y_short"] = y_long[eligible].astype(np.float32), y_short[eligible].astype(np.float32)
@@ -79,14 +79,15 @@ def build_symbol(symbol: str, geometry: Geometry, min_daily_volume: float) -> in
     return int(eligible.sum())
 
 
-def build(geometry: Geometry | None = None, min_daily_volume: float = 10e6, workers: int = 14) -> dict:
+def build(geometry: Geometry | None = None, min_daily_volume: float = 10e6, workers: int = 14, start: int = START) -> dict:
     geometry = geometry or Geometry()
     symbols = sorted(p.stem for p in universe_dir().glob("*.parquet"))
     for folder in ("panel", "bars"):
         for p in (root() / folder).glob("*.parquet"):
             p.unlink()
     with ProcessPoolExecutor(workers) as pool:
-        counts = dict(zip(symbols, pool.map(build_symbol, symbols, [geometry] * len(symbols), [min_daily_volume] * len(symbols), chunksize=4), strict=True))
+        args = ([geometry] * len(symbols), [min_daily_volume] * len(symbols), [start] * len(symbols))
+        counts = dict(zip(symbols, pool.map(build_symbol, symbols, *args, chunksize=4), strict=True))
     used = {s: n for s, n in counts.items() if n}
     meta = {"geometry": asdict(geometry), "min_daily_volume": min_daily_volume, "symbols": len(used), "rows": int(sum(used.values())), "cost_round_trip": COST}
     (root() / "panel_meta.json").write_text(json.dumps(meta, indent=2))
@@ -123,13 +124,13 @@ def quarters(first: str = "2023-07-01", last_exclusive: str = "2026-10-01") -> l
     return [(int(a.timestamp() * 1000), int(b.timestamp() * 1000)) for a, b in pairwise(edges)]
 
 
-def walk_forward(sub: int = 4) -> pd.DataFrame:
+def walk_forward(sub: int = 4, first: str = "2023-07-01", last_exclusive: str = "2026-10-01") -> pd.DataFrame:
     df = load_panel()
     names = feature_names(df)
     horizon = geometry().horizon
     (root() / "models").mkdir(parents=True, exist_ok=True)
     out = []
-    for lo, hi in quarters():
+    for lo, hi in quarters(first, last_exclusive):
         train = (df.open_time.to_numpy() + (horizon + 1) * HOUR < lo) & ((df.open_time.to_numpy() // HOUR) % sub == 0)
         test = (df.open_time.to_numpy() >= lo) & (df.open_time.to_numpy() < hi)
         if not test.any():
