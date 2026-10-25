@@ -29,6 +29,19 @@ def bots_list() -> None:
     _print([{"bot": f"#{b.number} {b.name}", "key": b.key, "what": b.what, "commands": list(b.commands)} for b in BOTS])
 
 
+job = typer.Typer(no_args_is_help=True, help="Background jobs started from the web UI.")
+app.add_typer(job, name="job")
+
+
+@job.command("run")
+def job_run(job_id: str) -> None:
+    """Run one queued web-UI job (historical test, forward test, retraining) and store its result."""
+    from trader.services import jobs
+
+    doc = jobs.run(job_id)
+    _print({k: doc.get(k) for k in ("id", "kind", "status", "error")})
+
+
 @app.command("status")
 def bots_status() -> None:
     """How each bot is doing on its paper account right now."""

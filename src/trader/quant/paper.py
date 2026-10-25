@@ -3,6 +3,8 @@ import logging
 import time
 from datetime import UTC, datetime, timedelta
 
+import pandas as pd
+
 from trader.core.config import settings
 from trader.quant import live, neutral
 from trader.quant.trend import COST, DAY
@@ -22,12 +24,9 @@ def _load(capital: float) -> dict:
     return {"start_equity": capital, "equity": capital, "positions": {}, "history": []}
 
 
-def step(capital: float = 1000.0, now: datetime | None = None) -> dict:
-    now = now or datetime.now(UTC)
+def target_book(now: datetime) -> tuple[dict[str, float], dict[str, float], dict[str, pd.DataFrame]]:
+    """The book decided at yesterday's 23:00 UTC close from fresh quotes: target weights, last prices, the quotes."""
     today = datetime(now.year, now.month, now.day, tzinfo=UTC)
-    state = _load(capital)
-    if state["history"] and state["history"][-1]["day"] == f"{today:%Y-%m-%d}":
-        return {"skipped": "already rebalanced today", **state["history"][-1]}
     bars = live.collect(today - timedelta(days=62), now)
     p = live.panel(bars)
     raw = live.scores(bars, live._ms(today))
@@ -36,9 +35,19 @@ def step(capital: float = 1000.0, now: datetime | None = None) -> dict:
     w = neutral.production_weights(p, {"blend": neutral.blend(xs7, edge), "edge": edge}, band=False)
     decided = w.loc[w.index < live._ms(today)].iloc[-1]
     last = {sym: float(b.close.iloc[-1]) for sym, b in bars.items()}
+    return {s: float(v) for s, v in decided.items()}, last, bars
+
+
+def step(capital: float = 1000.0, now: datetime | None = None) -> dict:
+    now = now or datetime.now(UTC)
+    today = datetime(now.year, now.month, now.day, tzinfo=UTC)
+    state = _load(capital)
+    if state["history"] and state["history"][-1]["day"] == f"{today:%Y-%m-%d}":
+        return {"skipped": "already rebalanced today", **state["history"][-1]}
+    target, last, bars = target_book(now)
     since = live._ms(datetime.fromisoformat(state["history"][-1]["rebalanced_at"])) if state["history"] else live._ms(now)
     funding = {sym: float(b.funding[b.open_time >= since].sum()) for sym, b in bars.items() if sym in state["positions"]}
-    row = rebalance(state, {s: float(v) for s, v in decided.items()}, last, today, now, funding, neutral.ENSEMBLE["band"])
+    row = rebalance(state, target, last, today, now, funding, neutral.ENSEMBLE["band"])
     path = ledger_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(state, indent=2))

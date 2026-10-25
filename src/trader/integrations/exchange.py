@@ -35,15 +35,48 @@ class Exchange:
         balance = await self._ex.fetch_balance()
         return float(balance["total"].get("USDT") or 0.0)
 
-    async def market_order(self, symbol_id: str, side: int, qty: float, *, leverage: float | None = None, reduce_only: bool = False) -> dict:
-        """Market buy (side > 0) / sell. With `leverage` the symbol is first switched to isolated margin at that leverage."""
+    async def market_order(self, symbol_id: str, side: int, qty: float, *, leverage: float | None = None, reduce_only: bool = False, margin: str = "isolated") -> dict:
+        """Market buy (side > 0) / sell. With `leverage` the symbol is first switched to `margin` mode at that leverage."""
         symbol = await self.market(symbol_id)
         if leverage is not None:
             with suppress(ccxt.ExchangeError):
-                await self._ex.set_margin_mode("isolated", symbol)
+                await self._ex.set_margin_mode(margin, symbol)
             await self._ex.set_leverage(int(leverage), symbol)
         amount = float(self._ex.amount_to_precision(symbol, qty))
         return await self._ex.create_order(symbol, "market", "buy" if side > 0 else "sell", amount, None, {"reduceOnly": True} if reduce_only else {})
+
+    async def positions(self) -> dict[str, float]:
+        """Open positions as Binance ids → signed contracts (long > 0)."""
+        await self._ex.load_markets()
+        out = {}
+        for position in await self._ex.fetch_positions():
+            qty = float(position.get("contracts") or 0.0)
+            if qty:
+                out[position["info"]["symbol"]] = qty if position.get("side") == "long" else -qty
+        return out
+
+    async def prices(self) -> dict[str, float]:
+        """Last price of every perpetual in one request, keyed by Binance id."""
+        await self._ex.load_markets()
+        tickers = await self._ex.fetch_tickers()
+        out = {}
+        for symbol, ticker in tickers.items():
+            market = self._ex.markets.get(symbol)
+            price = ticker.get("last") or ticker.get("close")
+            if market and price:
+                out[market["id"]] = float(price)
+        return out
+
+    async def min_notional(self, symbol_id: str) -> float:
+        market = self._ex.market(await self.market(symbol_id))
+        return float(((market.get("limits") or {}).get("cost") or {}).get("min") or 5.0)
+
+    def round_amount(self, symbol_id: str, qty: float) -> float:
+        """Contracts rounded down to the symbol's step; 0 when below the smallest tradable amount."""
+        try:
+            return float(self._ex.amount_to_precision(self._ex.markets_by_id[symbol_id][0]["symbol"], qty))
+        except (ccxt.InvalidOrder, KeyError, IndexError):
+            return 0.0
 
     async def stop_order(self, symbol_id: str, position_side: int, qty: float, stop_price: float) -> dict:
         """Reduce-only stop-market that closes a `position_side` position when the price reaches `stop_price`."""

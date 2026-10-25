@@ -21,6 +21,6 @@ os.environ.update({
 def client():
     from trader.main import app
 
-    with TestClient(app) as client:
+    with TestClient(app, base_url="http://127.0.0.1:8000", headers={"X-Trader-UI": "1"}) as client:
         yield client
     app.dependency_overrides.clear()

@@ -141,3 +141,20 @@ def retrain_models(
     from trader.quant import retrain
 
     _show(retrain.run(skip_download))
+
+
+@quant.command("live")
+def live_trade(
+    loop: Annotated[bool, typer.Option(help="keep running: rebalance every day at 00:15 UTC with REAL money")] = False,
+    dry_run: Annotated[bool, typer.Option(help="show the orders today's book needs, place nothing")] = False,
+) -> None:
+    """Trade the market-neutral book with real money on Binance (needs TRADING_MODE=live and API keys); --dry-run only plans."""
+    from trader.core.config import settings
+    from trader.quant import live_exec
+
+    if not dry_run and settings.trading_mode != "live":
+        raise typer.BadParameter("real-money trading needs TRADING_MODE=live (the web UI sets it after your confirmation)")
+    if loop:
+        live_exec.loop()
+    else:
+        _show(live_exec.step(dry_run=dry_run))
