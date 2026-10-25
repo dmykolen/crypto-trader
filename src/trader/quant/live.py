@@ -4,12 +4,11 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 
-import lightgbm as lgb
 import pandas as pd
 
 from trader.core.config import settings
 from trader.integrations import binance
-from trader.quant import features, model, neutral
+from trader.quant import features, model, neutral, xsmodel
 from trader.quant.model import MIN_ATR_PCT, STABLES
 from trader.quant.trend import DAY, Panel, stats
 from trader.services import market_data
@@ -78,7 +77,7 @@ def _collect(start: datetime, end: datetime, min_volume: float, workers: int) ->
 def scores(bars: dict[str, pd.DataFrame], day_from: int, min_volume: float = 10e6) -> pd.DataFrame:
     long_m, short_m, label, _ = model.model_for(day_from)
     names = long_m.feature_name()
-    xs_m = lgb.Booster(model_file=str(model.root() / "xs_models" / "xs_final.txt"))
+    xs_m = xsmodel.model_for(day_from)
     xs_names = xs_m.feature_name()
     btc = bars["BTCUSDT"]
     rows = []

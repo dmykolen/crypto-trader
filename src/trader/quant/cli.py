@@ -131,3 +131,13 @@ def paper_trade(
         paper.loop(capital)
     else:
         _show(paper.step(capital))
+
+
+@quant.command("retrain")
+def retrain_models(
+    skip_download: Annotated[bool, typer.Option(help="reuse the stored quotes; only rebuild the panel and the models")] = False,
+) -> None:
+    """Quarterly refresh: new archive months for every perp → daily and feature panels → final models (the replaced ones are kept for the quarter they served)."""
+    from trader.quant import retrain
+
+    _show(retrain.run(skip_download))

@@ -118,6 +118,30 @@ def walk_forward(horizon_h: int = 168, version: str = "xs7", target: str = "rank
     return preds
 
 
+FINAL_TREES = 200
+
+
+def train_final(horizon_h: int = 168, trees: int = FINAL_TREES) -> dict:
+    df = dataset(horizon_h, "xs7")
+    names = [c for c in df.columns if c not in NOT_FEATURES]
+    folder = model.root() / "xs_models"
+    folder.mkdir(parents=True, exist_ok=True)
+    lgb.train(PARAMS, lgb.Dataset(df[names], df.y), trees).save_model(str(folder / "xs_final.txt"))
+    return {"rows": len(df), "trees": trees}
+
+
+def model_for(day_ms: int) -> lgb.Booster:
+    """The 7-day model allowed to score `day_ms`: the latest quarterly model trained before it, the final one once it is 92 days past the last cutoff."""
+    folder = model.root() / "xs_models"
+    cutoffs = sorted(int(p.stem.split("_")[1]) for p in folder.glob("xs_*.txt") if p.stem.split("_")[1].isdigit())
+    usable = [c for c in cutoffs if c <= day_ms]
+    if (folder / "xs_final.txt").exists() and (not usable or day_ms >= cutoffs[-1] + 92 * 24 * HOUR):
+        return lgb.Booster(model_file=str(folder / "xs_final.txt"))
+    if not usable:
+        raise FileNotFoundError("no 7-day model trained before this day; run `trader quant retrain` first")
+    return lgb.Booster(model_file=str(folder / f"xs_{usable[-1]}.txt"))
+
+
 def study(horizon_h: int = 168) -> dict:
     preds = walk_forward(horizon_h)
     p = trend.load_panel()
