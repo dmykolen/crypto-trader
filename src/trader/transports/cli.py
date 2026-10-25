@@ -29,6 +29,14 @@ def bots_list() -> None:
     _print([{"bot": f"#{b.number} {b.name}", "key": b.key, "what": b.what, "commands": list(b.commands)} for b in BOTS])
 
 
+@app.command("status")
+def bots_status() -> None:
+    """How each bot is doing on its paper account right now."""
+    from trader.status import summary
+
+    _print(summary())
+
+
 console = Console()
 
 

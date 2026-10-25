@@ -147,6 +147,7 @@ lives in the `/data` volume).
 
 ```bash
 uv run trader bots                          # the bots of this app
+uv run trader status                        # how each bot is doing on its paper account right now
 uv run trader quant research                # features + labels for every liquid perp → walk-forward model → policy report
 uv run trader quant neutral                 # market-neutral books from the model ranking (chosen on 2023-07…2024-12)
 uv run trader quant book 2026-09-29         # the book held on a day: every long/short, weight, move, P&L on $1000
