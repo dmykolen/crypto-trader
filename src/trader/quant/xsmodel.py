@@ -40,22 +40,50 @@ def _rows(path, horizon_h: int) -> pd.DataFrame | None:
     return df[np.isfinite(df.fwd)]
 
 
-def dataset(horizon_h: int = 168) -> pd.DataFrame:
+SHARED = {"hour_sin", "hour_cos", "dow_sin", "dow_cos", "to_funding", "btc_ret_6", "btc_ret_24", "btc_ret_168", "btc_vol_24", "btc_vol_ratio", "btc_trend", "btc_rsi"}
+NOT_FEATURES = {"open_time", "symbol", "fwd", "y", "pred_long", "pred_short", "xs"}
+
+
+def cross_sectional(df: pd.DataFrame) -> pd.DataFrame:
+    """Each per-symbol feature as its percentile among all symbols at the same decision time, plus the state of the market."""
+    names = [c for c in df.columns if c not in NOT_FEATURES and c not in SHARED and not c.startswith(("xr_", "mkt_"))]
+    t = df.open_time
+    g = df.groupby(t)
+    ranks = g[names].rank(pct=True).add_prefix("xr_")
+    ctx = pd.DataFrame(
+        {
+            "mkt_breadth_24": (df.ret_24 > 0).groupby(t).transform("mean"),
+            "mkt_breadth_168": (df.ret_168 > 0).groupby(t).transform("mean"),
+            "mkt_disp_24": g.ret_24.transform("std"),
+            "mkt_disp_168": g.ret_168.transform("std"),
+            "mkt_median_24": g.ret_24.transform("median"),
+            "mkt_median_168": g.ret_168.transform("median"),
+            "mkt_funding": g.funding_24.transform("median"),
+            "mkt_rv": g.rv_24.transform("median"),
+        },
+        index=df.index,
+    )
+    return pd.concat([df, ranks, ctx], axis=1)
+
+
+def dataset(horizon_h: int = 168, version: str = "xs7") -> pd.DataFrame:
     paths = sorted((model.root() / "panel").glob("*.parquet"))
     with ThreadPoolExecutor(12) as pool:
         frames = [f for f in pool.map(lambda p: _rows(p, horizon_h), paths) if f is not None]
     df = pd.concat(frames, ignore_index=True)
+    if version == "xs7r":
+        df = cross_sectional(df)
     df["y"] = df.groupby("open_time").fwd.rank(pct=True) - 0.5
     df["symbol"] = df.symbol.astype("category")
     return df
 
 
-def walk_forward(horizon_h: int = 168) -> pd.DataFrame:
-    df = dataset(horizon_h)
-    names = [c for c in df.columns if c not in ("open_time", "symbol", "fwd", "y")]
+def walk_forward(horizon_h: int = 168, version: str = "xs7") -> pd.DataFrame:
+    df = dataset(horizon_h, version)
+    names = [c for c in df.columns if c not in NOT_FEATURES]
     t = df.open_time.to_numpy()
     out = []
-    folder = model.root() / "xs_models"
+    folder = model.root() / ("xs_models" if version == "xs7" else f"{version}_models")
     folder.mkdir(parents=True, exist_ok=True)
     for lo, hi in model.quarters():
         train = t + (horizon_h + 24) * HOUR < lo
@@ -78,7 +106,7 @@ def walk_forward(horizon_h: int = 168) -> pd.DataFrame:
         )
         log.warning("xs quarter %s: %d train rows, %d trees", pd.Timestamp(lo, unit="ms").date(), int(fit_rows.sum()), booster.best_iteration)
     preds = pd.concat(out, ignore_index=True)
-    preds.to_parquet(model.root() / "xs_predictions.parquet", index=False)
+    preds.to_parquet(model.root() / ("xs_predictions.parquet" if version == "xs7" else f"{version}_predictions.parquet"), index=False)
     full = df
     booster = lgb.train(PARAMS, lgb.Dataset(full[names], full.y), max(50, int(np.median([b for b in [booster.best_iteration]]))))
     booster.save_model(str(folder / "xs_final.txt"))

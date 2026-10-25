@@ -131,7 +131,7 @@ def forward(first_day: datetime, last_day: datetime | None = None, capital: floa
     edge = neutral.daily_scores(raw, DECISION_HOUR)["edge"]
     xs7 = raw.pivot_table(index=(raw.open_time // DAY * DAY), columns="symbol", values="xs", aggfunc="last")
     family = {"blend": neutral.blend(xs7, edge), "edge": edge}
-    w = neutral.ensemble_weights(p, family)
+    w = neutral.production_weights(p, family)
     ret = neutral.weights_returns(p, w)
     ret_full = neutral.weights_returns(p, neutral.ensemble_weights(p, family, {**neutral.ENSEMBLE, "family": "edge"}))
     days = ret[(ret.index >= _ms(first_day)) & (ret.index <= _ms(last_day))]

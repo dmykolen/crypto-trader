@@ -33,9 +33,18 @@ def step(capital: float = 1000.0, now: datetime | None = None) -> dict:
     raw = live.scores(bars, live._ms(today))
     edge = neutral.daily_scores(raw, live.DECISION_HOUR)["edge"]
     xs7 = raw.pivot_table(index=(raw.open_time // DAY * DAY), columns="symbol", values="xs", aggfunc="last")
-    w = neutral.ensemble_weights(p, {"blend": neutral.blend(xs7, edge), "edge": edge})
+    w = neutral.production_weights(p, {"blend": neutral.blend(xs7, edge), "edge": edge})
     decided = w.loc[w.index < live._ms(today)].iloc[-1]
     last = {sym: float(b.close.iloc[-1]) for sym, b in bars.items()}
+    row = rebalance(state, {s: float(v) for s, v in decided.items()}, last, today, now)
+    path = ledger_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(state, indent=2))
+    return row
+
+
+def rebalance(state: dict, target: dict[str, float], last: dict[str, float], today: datetime, now: datetime) -> dict:
+    """Mark the held book to `last` prices, move it to `target` weights paying costs on the traded notional, append the day to the ledger."""
     pnl = 0.0
     for sym, pos in state["positions"].items():
         price = last.get(sym)
@@ -43,7 +52,7 @@ def step(capital: float = 1000.0, now: datetime | None = None) -> dict:
             pnl += pos["weight"] * state["equity"] * (price / pos["entry"] - 1)
     equity = state["equity"] + pnl
     old = {s: pos["weight"] for s, pos in state["positions"].items()}
-    new = {s: float(v) for s, v in decided.items() if abs(v) > 1e-9 and s in last}
+    new = {s: v for s, v in target.items() if abs(v) > 1e-9 and s in last}
     turnover = sum(abs(new.get(s, 0.0) - old.get(s, 0.0)) for s in set(old) | set(new))
     cost = COST * turnover * equity
     equity -= cost
@@ -62,9 +71,6 @@ def step(capital: float = 1000.0, now: datetime | None = None) -> dict:
         "return_since_start_pct": round(100 * (equity / state["start_equity"] - 1), 2),
     }
     state["history"].append(row)
-    path = ledger_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(state, indent=2))
     return row
 
 

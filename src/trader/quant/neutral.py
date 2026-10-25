@@ -109,13 +109,41 @@ def book_returns(p: Panel, score: pd.DataFrame, book: Book) -> pd.Series:
     return weights_returns(p, book_weights(p, score, book))
 
 
-ENSEMBLE = {"family": "blend", "k": (5, 10, 20), "hold_days": (5, 7, 10, 14), "weighting": ("equal", "inverse_vol"), "gross": 2.0, "per_side": 30}
+ENSEMBLE = {
+    "family": "blend",
+    "k": (5, 10, 20),
+    "hold_days": (5, 7, 10, 14),
+    "weighting": ("equal", "inverse_vol"),
+    "gross": 2.0,
+    "per_side": 30,
+    "short_cap": 0.04,
+    "beta_days": 60,
+}
 
 
 def ensemble_weights(p: Panel, scores: dict[str, pd.DataFrame], config: dict = ENSEMBLE) -> pd.DataFrame:
     books = [Book(k, h, config["gross"], config["family"], wt) for k, h, wt in product(config["k"], config["hold_days"], config["weighting"])]
     w = sum(book_weights(p, scores[config["family"]], b) for b in books) / len(books)
     return compress(w, config["per_side"]) if config.get("per_side") else w
+
+
+def beta_hedge(p: Panel, w: pd.DataFrame, lookback: int = 60, hedge: str = "BTCUSDT") -> pd.DataFrame:
+    """Offset the book's market beta with the hedge perpetual so the whole book has zero beta to it."""
+    rb = p.r[hedge]
+    beta = p.r.rolling(lookback, min_periods=lookback // 2).cov(rb).div(rb.rolling(lookback, min_periods=lookback // 2).var(), axis=0)
+    beta = beta.clip(-1.0, 4.0).fillna(1.0)
+    net = (w * beta.reindex(index=w.index, columns=w.columns).fillna(1.0)).sum(axis=1)
+    out = w.copy()
+    out[hedge] = out.get(hedge, 0.0) - net
+    return out
+
+
+def vol_target(p: Panel, w: pd.DataFrame, target: float, lookback: int = 30, lo: float = 0.25, hi: float = 2.0) -> pd.DataFrame:
+    """Scale the whole book so its trailing realized daily volatility sits near `target`."""
+    raw = weights_returns(p, w)
+    realized = raw.rolling(lookback, min_periods=lookback // 2).std()
+    scale = (target / realized).clip(lo, hi).fillna(1.0)
+    return w.mul(scale.reindex(w.index).fillna(1.0), axis=0)
 
 
 def compress(w: pd.DataFrame, per_side: int) -> pd.DataFrame:
@@ -129,10 +157,20 @@ def compress(w: pd.DataFrame, per_side: int) -> pd.DataFrame:
     return keep_l.mul(scale_l, axis=0) + keep_s.mul(scale_s, axis=0)
 
 
+def production_weights(p: Panel, scores: dict[str, pd.DataFrame], config: dict = ENSEMBLE) -> pd.DataFrame:
+    """The book the bot trades: ensemble → 30 per side → shorts capped → beta-hedged with BTC."""
+    w = ensemble_weights(p, scores, config)
+    if config.get("short_cap"):
+        w = w.clip(lower=-config["short_cap"])
+    if config.get("beta_days") and "BTCUSDT" in p.r.columns:
+        w = beta_hedge(p, w, config["beta_days"])
+    return w
+
+
 def day_view(day_ms: int, capital: float = 1000.0, config: dict = ENSEMBLE) -> dict:
     p = trend.load_panel()
     scores = all_scores(p, pd.read_parquet(model.root() / "predictions.parquet"))
-    w = ensemble_weights(p, scores, config)
+    w = production_weights(p, scores, config)
     if day_ms - DAY not in w.index or day_ms not in p.r.index:
         raise ValueError("this day is outside the out-of-sample prediction range (2023-07-01 … 2026-09-30)")
     held, before = w.loc[day_ms - DAY], w.loc[day_ms - 2 * DAY] if day_ms - 2 * DAY in w.index else w.loc[day_ms - DAY] * 0
