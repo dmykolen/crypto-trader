@@ -86,14 +86,15 @@ def rebalance(state: dict, target: dict[str, float], last: dict[str, float], tod
     return row
 
 
-def loop(capital: float = 1000.0, at_minute: int = 15) -> None:
+def loop(capital: float = 1000.0, at_minute: int = 15, retry_minutes: int = 15) -> None:
     while True:
         now = datetime.now(UTC)
         due = datetime(now.year, now.month, now.day, 0, at_minute, tzinfo=UTC)
         if now >= due:
             try:
                 log.warning("quant paper rebalance: %s", step(capital, now))
+                due += timedelta(days=1)
             except Exception:
-                log.exception("quant paper rebalance failed")
-            due += timedelta(days=1)
+                log.exception("quant paper rebalance failed, retrying in %d minutes", retry_minutes)
+                due = datetime.now(UTC) + timedelta(minutes=retry_minutes)
         time.sleep(max(30.0, (due - datetime.now(UTC)).total_seconds()))
