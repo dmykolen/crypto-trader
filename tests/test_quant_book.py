@@ -56,7 +56,21 @@ def test_the_paper_ledger_marks_the_book_to_market_and_pays_costs_on_what_it_tra
     day = datetime(2026, 10, 25, tzinfo=UTC)
     row = paper.rebalance(state, {"AUSDT": 0.5, "CUSDT": -0.5}, {"AUSDT": 11.0, "BUSDT": 22.0, "CUSDT": 5.0}, day, day)
     assert row["pnl_since_last"] == pytest.approx(0.5 * 1000 * 0.1 - 0.5 * 1000 * 0.1)
-    assert row["turnover"] == pytest.approx(1.0)
-    assert state["equity"] == pytest.approx(1000.0 - COST * 1.0 * 1000.0)
-    assert state["positions"] == {"AUSDT": {"weight": 0.5, "entry": 11.0}, "CUSDT": {"weight": -0.5, "entry": 5.0}}
+    assert row["turnover"] == pytest.approx(0.05 + 0.55 + 0.5)
+    assert state["equity"] == pytest.approx(1000.0 - COST * 1.1 * 1000.0)
+    assert set(state["positions"]) == {"AUSDT", "CUSDT"}
+    assert state["positions"]["AUSDT"]["entry"] == 11.0
+    assert state["positions"]["CUSDT"]["weight"] * state["equity"] == pytest.approx(-500.0)
     assert state["history"] == [row]
+
+
+def test_longs_pay_and_shorts_receive_positive_funding_and_small_drifts_stay_inside_the_band():
+    state = {"start_equity": 1000.0, "equity": 1000.0, "positions": {"AUSDT": {"weight": 0.5, "entry": 10.0}, "BUSDT": {"weight": -0.5, "entry": 20.0}}, "history": []}
+    day = datetime(2026, 10, 26, tzinfo=UTC)
+    row = paper.rebalance(state, {"AUSDT": 0.5, "BUSDT": -0.5}, {"AUSDT": 10.0, "BUSDT": 20.0}, day, day, {"AUSDT": 0.001, "BUSDT": 0.003}, band=0.01)
+    assert row["funding_paid"] == pytest.approx(0.5 * 1000 * 0.001 - 0.5 * 1000 * 0.003)
+    assert row["pnl_since_last"] == pytest.approx(-row["funding_paid"])
+    assert row["turnover"] == pytest.approx(0.0)
+    row = paper.rebalance(state, {"AUSDT": 0.6, "BUSDT": -0.5}, {"AUSDT": 10.0, "BUSDT": 20.0}, day, day, band=0.01)
+    assert row["turnover"] == pytest.approx(0.6 - 500 / 1001, abs=1e-3)
+    assert state["positions"]["AUSDT"]["weight"] == pytest.approx(0.6, rel=1e-3)

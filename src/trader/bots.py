@@ -22,7 +22,14 @@ BOTS = (
         2,
         "quant",
         "Квант",
-        "Індикатори, математичний аналіз, графічні та свічкові патерни → модель LightGBM вирішує, коли зайти, вийти або перевідкрити позицію з плечем на сотнях ф'ючерсів.",
-        ("trader quant research", "trader quant day SYMBOL YYYY-MM-DD", "trader quant day SYMBOL --csv quotes.csv"),
+        "135 індикаторів, математичних і патернових ознак по кожному ліквідному ф'ючерсу → дві моделі LightGBM ранжують токени → щодня ринково-нейтральна книга: "
+        "30 лонгів найсильніших і до 30 шортів найслабших, шорти ≤ 4 %, бета-хедж через BTC, плече 2x, торгівля лише поза коридором 1 %.",
+        (
+            "trader quant paper --loop",
+            "trader quant forward YYYY-MM-DD",
+            "trader quant book YYYY-MM-DD",
+            "trader quant day SYMBOL YYYY-MM-DD",
+            "trader quant day SYMBOL --csv quotes.csv",
+        ),
     ),
 )

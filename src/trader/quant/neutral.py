@@ -118,6 +118,7 @@ ENSEMBLE = {
     "per_side": 30,
     "short_cap": 0.04,
     "beta_days": 60,
+    "band": 0.01,
 }
 
 
@@ -146,6 +147,19 @@ def vol_target(p: Panel, w: pd.DataFrame, target: float, lookback: int = 30, lo:
     return w.mul(scale.reindex(w.index).fillna(1.0), axis=0)
 
 
+def banded(w: pd.DataFrame, band: float) -> pd.DataFrame:
+    """Trade a position only when its target drifts more than `band` from what is held; names that leave the book are closed."""
+    target = w.to_numpy()
+    out = np.zeros_like(target)
+    held = np.zeros(target.shape[1])
+    for i, row in enumerate(target):
+        row = np.nan_to_num(row)
+        held = np.where(np.abs(row - held) > band, row, held)
+        held = np.where(row == 0.0, 0.0, held)
+        out[i] = held
+    return pd.DataFrame(out, index=w.index, columns=w.columns)
+
+
 def compress(w: pd.DataFrame, per_side: int) -> pd.DataFrame:
     """Keep the `per_side` largest longs and shorts of a book, resized so each side keeps its gross."""
     longs = w.where(w > 0)
@@ -157,13 +171,15 @@ def compress(w: pd.DataFrame, per_side: int) -> pd.DataFrame:
     return keep_l.mul(scale_l, axis=0) + keep_s.mul(scale_s, axis=0)
 
 
-def production_weights(p: Panel, scores: dict[str, pd.DataFrame], config: dict = ENSEMBLE) -> pd.DataFrame:
-    """The book the bot trades: ensemble → 30 per side → shorts capped → beta-hedged with BTC."""
+def production_weights(p: Panel, scores: dict[str, pd.DataFrame], config: dict = ENSEMBLE, band: bool = True) -> pd.DataFrame:
+    """The book the bot trades: ensemble → 30 per side → shorts capped → beta-hedged with BTC → traded only past the band."""
     w = ensemble_weights(p, scores, config)
     if config.get("short_cap"):
         w = w.clip(lower=-config["short_cap"])
     if config.get("beta_days") and "BTCUSDT" in p.r.columns:
         w = beta_hedge(p, w, config["beta_days"])
+    if band and config.get("band"):
+        w = banded(w, config["band"])
     return w
 
 

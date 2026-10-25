@@ -78,9 +78,14 @@ def dataset(horizon_h: int = 168, version: str = "xs7") -> pd.DataFrame:
     return df
 
 
-def walk_forward(horizon_h: int = 168, version: str = "xs7") -> pd.DataFrame:
+def walk_forward(horizon_h: int = 168, version: str = "xs7", target: str = "rank") -> pd.DataFrame:
     df = dataset(horizon_h, version)
     names = [c for c in df.columns if c not in NOT_FEATURES]
+    params = PARAMS
+    if target == "tails":
+        df["y"] = np.where(df.y >= 0.3, 1.0, np.where(df.y <= -0.3, 0.0, np.nan))
+        params = {**PARAMS, "objective": "binary"}
+    labeled = df.y.notna().to_numpy()
     t = df.open_time.to_numpy()
     out = []
     folder = model.root() / ("xs_models" if version == "xs7" else f"{version}_models")
@@ -92,9 +97,9 @@ def walk_forward(horizon_h: int = 168, version: str = "xs7") -> pd.DataFrame:
             continue
         order = np.argsort(t[train], kind="stable")
         cut = t[train][order[int(len(order) * 0.85)]]
-        fit_rows, valid_rows = train & (t < cut), train & (t >= cut + (horizon_h + 24) * HOUR)
+        fit_rows, valid_rows = train & (t < cut) & labeled, train & (t >= cut + (horizon_h + 24) * HOUR) & labeled
         booster = lgb.train(
-            PARAMS,
+            params,
             lgb.Dataset(df.loc[fit_rows, names], df.y[fit_rows]),
             1500,
             valid_sets=[lgb.Dataset(df.loc[valid_rows, names], df.y[valid_rows])],
@@ -107,8 +112,8 @@ def walk_forward(horizon_h: int = 168, version: str = "xs7") -> pd.DataFrame:
         log.warning("xs quarter %s: %d train rows, %d trees", pd.Timestamp(lo, unit="ms").date(), int(fit_rows.sum()), booster.best_iteration)
     preds = pd.concat(out, ignore_index=True)
     preds.to_parquet(model.root() / ("xs_predictions.parquet" if version == "xs7" else f"{version}_predictions.parquet"), index=False)
-    full = df
-    booster = lgb.train(PARAMS, lgb.Dataset(full[names], full.y), max(50, int(np.median([b for b in [booster.best_iteration]]))))
+    full = df[labeled]
+    booster = lgb.train(params, lgb.Dataset(full[names], full.y), max(50, booster.best_iteration))
     booster.save_model(str(folder / "xs_final.txt"))
     return preds
 

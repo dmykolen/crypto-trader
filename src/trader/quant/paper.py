@@ -33,42 +33,54 @@ def step(capital: float = 1000.0, now: datetime | None = None) -> dict:
     raw = live.scores(bars, live._ms(today))
     edge = neutral.daily_scores(raw, live.DECISION_HOUR)["edge"]
     xs7 = raw.pivot_table(index=(raw.open_time // DAY * DAY), columns="symbol", values="xs", aggfunc="last")
-    w = neutral.production_weights(p, {"blend": neutral.blend(xs7, edge), "edge": edge})
+    w = neutral.production_weights(p, {"blend": neutral.blend(xs7, edge), "edge": edge}, band=False)
     decided = w.loc[w.index < live._ms(today)].iloc[-1]
     last = {sym: float(b.close.iloc[-1]) for sym, b in bars.items()}
-    row = rebalance(state, {s: float(v) for s, v in decided.items()}, last, today, now)
+    since = live._ms(datetime.fromisoformat(state["history"][-1]["rebalanced_at"])) if state["history"] else live._ms(now)
+    funding = {sym: float(b.funding[b.open_time >= since].sum()) for sym, b in bars.items() if sym in state["positions"]}
+    row = rebalance(state, {s: float(v) for s, v in decided.items()}, last, today, now, funding, neutral.ENSEMBLE["band"])
     path = ledger_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(state, indent=2))
     return row
 
 
-def rebalance(state: dict, target: dict[str, float], last: dict[str, float], today: datetime, now: datetime) -> dict:
-    """Mark the held book to `last` prices, move it to `target` weights paying costs on the traded notional, append the day to the ledger."""
+def rebalance(state: dict, target: dict[str, float], last: dict[str, float], today: datetime, now: datetime, funding: dict[str, float] | None = None, band: float = 0.0) -> dict:
+    """Mark the held book to `last` prices and charge its funding, then trade each name whose target drifted past `band` from its held weight."""
+    before = state["equity"]
     pnl = 0.0
+    paid = 0.0
+    notional = {}
     for sym, pos in state["positions"].items():
-        price = last.get(sym)
-        if price:
-            pnl += pos["weight"] * state["equity"] * (price / pos["entry"] - 1)
-    equity = state["equity"] + pnl
-    old = {s: pos["weight"] for s, pos in state["positions"].items()}
-    new = {s: v for s, v in target.items() if abs(v) > 1e-9 and s in last}
-    turnover = sum(abs(new.get(s, 0.0) - old.get(s, 0.0)) for s in set(old) | set(new))
+        price = last.get(sym, pos["entry"])
+        notional[sym] = pos["weight"] * before * price / pos["entry"]
+        pnl += pos["weight"] * before * (price / pos["entry"] - 1)
+        paid += pos["weight"] * before * (funding or {}).get(sym, 0.0)
+    pnl -= paid
+    equity = before + pnl
+    held = {s: n / equity for s, n in notional.items()}
+    new = {}
+    for sym, tgt in target.items():
+        if abs(tgt) <= 1e-9 or sym not in last:
+            continue
+        cur = held.get(sym, 0.0)
+        new[sym] = cur if cur and abs(tgt - cur) <= band else tgt
+    turnover = sum(abs(new.get(s, 0.0) - held.get(s, 0.0)) for s in set(held) | set(new))
     cost = COST * turnover * equity
-    equity -= cost
-    state["equity"] = equity
-    state["positions"] = {s: {"weight": v, "entry": last[s]} for s, v in new.items()}
+    state["equity"] = equity - cost
+    state["positions"] = {s: {"weight": v * equity / state["equity"], "entry": last[s]} for s, v in new.items()}
     row = {
         "day": f"{today:%Y-%m-%d}",
         "rebalanced_at": now.isoformat(timespec="seconds"),
-        "equity": round(equity, 2),
+        "equity": round(state["equity"], 2),
         "pnl_since_last": round(pnl, 2),
+        "funding_paid": round(paid, 2),
         "cost": round(cost, 2),
         "turnover": round(turnover, 3),
         "longs": sum(v > 0 for v in new.values()),
         "shorts": sum(v < 0 for v in new.values()),
         "gross": round(sum(abs(v) for v in new.values()), 3),
-        "return_since_start_pct": round(100 * (equity / state["start_equity"] - 1), 2),
+        "return_since_start_pct": round(100 * (state["equity"] / state["start_equity"] - 1), 2),
     }
     state["history"].append(row)
     return row
