@@ -1,5 +1,4 @@
 import json
-from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -8,12 +7,21 @@ import pandas as pd
 
 from trader.core.config import settings
 from trader.integrations import binance
-from trader.quant import features, model, research, sim
-from trader.quant.sim import Bars
-from trader.services import market_data
+from trader.quant import evidence, model, paper, tactics
+from trader.quant.trend import DAY, DEV_END, DEV_START, END
+from trader.quant.trend import _ms as _iso_ms
+from trader.services import engine, market_data
 
 HOUR = 3_600_000
-WARMUP = timedelta(days=45)
+HISTORY = timedelta(days=150)
+TARGET_VOL, MAX_LEVERAGE = 0.02, 5.0
+AUTO = "підібране: рахунок тактики має коливатися ≈ {target:g} % за день, а ціна за 30 днів до того ходила ≈ {vol:.2f} % за день; не більше {top:g}×"
+SNAPSHOT = ("rsi_14", "adx", "atr_pct", "ema_dist_200", "bb_pctb", "supertrend", "zz_structure", "volume_z24", "funding_z", "btc_ret_24")
+FAMILY = {
+    "trend": ("ema_cross", "supertrend", "psar", "macd", "donchian", "kalman", "ichimoku", "adx_trend", "trend_vote", "heikin_ashi", "btc_follow", "hurst_switch"),
+    "revert": ("rsi_revert", "bollinger_revert", "zscore_revert", "funding_fade", "residual_revert"),
+    "ml": ("ml_edge",),
+}
 TIME_COLUMNS = ("open_time", "timestamp", "time", "date", "datetime", "open time", "ts")
 
 
@@ -71,182 +79,218 @@ def from_csv(path: Path) -> pd.DataFrame:
     return df
 
 
-def _explain(booster, x: pd.DataFrame, names: list[str], k: int, top: int = 4) -> list[str]:
-    contrib = booster.predict(x.iloc[[k]], pred_contrib=True)[0][:-1]
-    order = np.argsort(-np.abs(contrib))[:top]
-    return [f"{names[j]}={x.iloc[k, j]:.3g} ({contrib[j]:+.3f}R)" for j in order]
+def _edge(f: pd.DataFrame) -> np.ndarray:
+    out = np.full(len(f), np.nan)
+    t = f.index.to_numpy(np.int64)
+    starts = pd.to_datetime(t, unit="ms").to_period("Q").start_time.as_unit("ms").asi8
+    for q in np.unique(starts):
+        try:
+            long_m, short_m, _, _ = model.model_for(int(q))
+        except FileNotFoundError:
+            continue
+        rows = starts == q
+        x = f.reindex(columns=long_m.feature_name())[rows]
+        out[rows] = long_m.predict(x) - short_m.predict(x)
+    return out
 
 
-def replay(symbol: str, day: datetime | None = None, csv: Path | None = None, theta: float | None = None, capital: float = 1000.0) -> dict:
-    g = model.geometry()
+def family(rule: str) -> str:
+    return next((k for k, rules in FAMILY.items() if rule in rules), "pattern")
+
+
+def _record() -> dict[str, dict]:
+    out: dict[str, dict] = {}
+    store = model.root() / "tactics"
+    for name, periods in (
+        ("main_configs", {"dev": (DEV_START, DEV_END), "holdout": (DEV_END, END)}),
+        ("pre_configs", {"untouched": (_iso_ms("2021-07-01"), _iso_ms("2023-07-01"))}),
+    ):
+        path = store / f"{name}.parquet"
+        if not path.exists():
+            continue
+        frame = pd.read_parquet(path)
+        for key, (lo, hi) in periods.items():
+            r = frame[(frame.index >= lo) & (frame.index < hi)].fillna(0.0)
+            sharpe = r.mean() / r.std().replace(0, np.nan) * np.sqrt(365)
+            for tactic, v in sharpe.items():
+                out.setdefault(tactic, {})[key] = None if pd.isna(v) else round(float(v), 2)
+    return out
+
+
+def _book(symbol: str, lo: int, hi: int) -> tuple[list[dict], bool]:
+    held: dict[str, float] = {}
+    known: set[str] = set()
+    for path in (model.root() / "book_history.parquet", settings.data_dir / "quant" / "live" / "forward_book.parquet"):
+        if path.exists():
+            b = pd.read_parquet(path)
+            b = b[(b.day >= lo) & (b.day < hi)]
+            known |= {_dt(int(d)).strftime("%Y-%m-%d") for d in b.day.unique()}
+            mine = b[b.symbol == symbol]
+            held |= {_dt(int(d)).strftime("%Y-%m-%d"): round(float(w), 5) for d, w in zip(mine.day, mine.weight, strict=True)}
+    ledger = paper.ledger_path()
+    for h in json.loads(ledger.read_text())["history"] if ledger.exists() else []:
+        if "book" in h and lo <= _iso_ms(h["day"]) < hi:
+            known.add(h["day"])
+            held |= {h["day"]: round(h["book"][symbol], 5)} if symbol in h["book"] else {}
+    days = {_dt(lo + i * DAY).strftime("%Y-%m-%d") for i in range((hi - lo) // DAY)}
+    return [{"day": d, "weight": w} for d, w in sorted(held.items())], days <= known
+
+
+def _price(entry: float, side: int, ret: float, lev: float, fee: float) -> float:
+    return entry * ((ret / lev + fee + 1) / (1 - fee) if side > 0 else (1 - fee - ret / lev) / (1 + fee))
+
+
+def _bot(lo: int, hi: int) -> dict | None:
+    first, last = _dt(lo).strftime("%Y-%m-%d"), _dt(hi).strftime("%Y-%m-%d")
+    ledger = paper.ledger_path()
+    paid = {h["day"]: h["equity"] for h in json.loads(ledger.read_text())["history"]} if ledger.exists() else {}
+    if first in paid and last in paid:
+        return {"source": "paper", "pnl": round(paid[last] - paid[first], 2), "return_pct": round(100 * (paid[last] / paid[first] - 1), 2)}
+    e = evidence.load() or {"days": [], "equity": []}
+    tested = dict(zip(e["days"], e["equity"], strict=True))
+    before, end = _dt(lo - DAY).strftime("%Y-%m-%d"), _dt(hi - DAY).strftime("%Y-%m-%d")
+    return {"source": "history", "return_pct": round(100 * (tested[end] / tested[before] - 1), 2)} if before in tested and end in tested else None
+
+
+def _trades(x: tactics.Inputs, t: tactics.Tactic, side: np.ndarray, lev: float, start: int, capital: float) -> list[dict]:
+    result = tactics.backtest(x, t, side, lev, start, capital)
+    costs = engine.Costs()
+    sl, tp, _ = tactics._risk(x, t)
+    out, before = [], capital
+    for r in result.trades.to_dict("records"):
+        i, j, s = int(r["entry_bar"]), int(r["exit_bar"]), int(r["side"])
+        entry = x.o[i] * (1 + s * costs.slip)
+        snap = {k: round(float(x.f[k].iat[i - 1]), 3) for k in SNAPSHOT if k in x.f and i > 0 and np.isfinite(x.f[k].iat[i - 1])}
+        out.append({
+            "side": "LONG" if s > 0 else "SHORT",
+            "entry_time": int(x.time[i]),
+            "exit_time": int(x.time[j]) + (HOUR if r["reason"] in ("end", "time") else 0),
+            "entry": round(float(entry), 8),
+            "exit": round(float(_price(entry, s, float(r["ret"]), lev, costs.fee)), 8),
+            "reason": r["reason"],
+            "stop": round(float(entry * (1 - s * sl[i])), 8) if sl[i] > 0 else None,
+            "take": round(float(entry * (1 + s * tp[i])), 8) if tp[i] > 0 else None,
+            "return_on_margin_pct": round(100 * float(r["ret"]), 2),
+            "pnl": round(float(before * r["ret"]), 2),
+            "why": snap,
+        })
+        before *= 1 + float(r["ret"])
+    return out
+
+
+def run(symbol: str, day: datetime | None = None, days: int = 1, csv: Path | None = None, leverage: float | None = None, capital: float = 1000.0) -> dict:
     now = datetime.now(UTC)
     if csv is not None:
         bars = from_csv(csv)
         last = _dt(int(bars.open_time.max()))
-        day = day or datetime(last.year, last.month, last.day, tzinfo=UTC)
+        day = day or datetime(last.year, last.month, last.day, tzinfo=UTC) - timedelta(days=days - 1)
     else:
-        day = day or datetime(now.year, now.month, now.day, tzinfo=UTC) - timedelta(days=1)
-        bars = quotes(symbol, day - WARMUP, min(day + timedelta(days=1, hours=g.horizon + 1), now - timedelta(minutes=1)))
-    span = (_dt(int(bars.open_time.min())), _dt(int(bars.open_time.max())) + timedelta(hours=1))
+        day = day or datetime(now.year, now.month, now.day, tzinfo=UTC) - timedelta(days=days)
+        bars = quotes(symbol, day - HISTORY, min(day + timedelta(days=days), now))
+    lo, hi = _ms(day), _ms(day) + days * DAY
+    bars = bars[bars.open_time < hi].reset_index(drop=True)
+    start = int(np.searchsorted(bars.open_time.to_numpy(), lo))
+    if start >= len(bars):
+        raise ValueError(f"no quotes for {symbol} on {day:%Y-%m-%d}")
     try:
-        btc = bars if symbol == "BTCUSDT" and csv is None else quotes("BTCUSDT", *span)
+        btc = None if csv is not None else bars if symbol == "BTCUSDT" else quotes("BTCUSDT", _dt(int(bars.open_time.min())), _dt(int(bars.open_time.max()) + HOUR))
     except Exception:
         btc = None
-    f = features.frame(bars, btc)
-    lo, hi = _ms(day), _ms(day) + 24 * HOUR
-    long_m, short_m, trained, tag = model.model_for(lo)
-    policy = research.chosen_policy(tag)
-    if theta is not None:
-        policy = replace(policy, theta=theta, theta_long=None, theta_short=None)
-    th_long, th_short = policy.thresholds()
-    names = long_m.feature_name()
-    x = f.reindex(columns=names)
-    decide = (f.index >= lo - HOUR) & (f.index < hi - HOUR)
-    if not decide.any():
-        raise ValueError(f"no quotes for {symbol} on {day:%Y-%m-%d}")
-    xd = x[decide]
-    pl, ps = long_m.predict(xd), short_m.predict(xd)
-    preds = pd.DataFrame({"symbol": symbol, "open_time": f.index[decide], "pred_long": pl, "pred_short": ps})
-    c = bars.close.to_numpy(np.float64)
-    sb = Bars(
-        bars.open_time.to_numpy(np.int64),
-        bars.open.to_numpy(np.float64),
-        bars.high.to_numpy(np.float64),
-        bars.low.to_numpy(np.float64),
-        c,
-        f.atr_pct.to_numpy(np.float64) * c,
-        bars.get("funding", pd.Series(0.0, index=bars.index)).fillna(0.0).to_numpy(np.float64),
-    )
-    last_t = int(bars.open_time.max())
-    result = sim.simulate(preds, {symbol: sb}, g, policy, lo, min(hi + g.horizon * HOUR, last_t + HOUR), capital)
-    opened = set(result.trades.entry_time.astype(int)) if len(result.trades) else set()
-    close_at = dict(zip(bars.open_time.to_numpy(np.int64).tolist(), c.tolist(), strict=True))
-    hours = []
-    for k, t in enumerate(preds.open_time.to_numpy()):
-        side, edge, booster = ("LONG", pl[k] - th_long, long_m) if pl[k] - th_long >= ps[k] - th_short else ("SHORT", ps[k] - th_short, short_m)
-        entered = int(t) + HOUR in opened
-        action = f"OPEN {side}" if entered else (f"signal {side}, not taken" if edge > 0 else "wait")
-        hours.append({
-            "bar": _dt(int(t) + HOUR).strftime("%H:%M"),
-            "close": close_at.get(int(t)),
-            "expected_r_long": round(float(pl[k]), 3),
-            "expected_r_short": round(float(ps[k]), 3),
-            "action": action,
-            "why": _explain(booster, xd, names, k) if edge > 0 else [],
+    probe = tactics.inputs(bars, btc)
+    x = tactics.inputs(bars, btc, _edge(probe.f))
+    daily_close = bars.groupby(bars.open_time // DAY).close.last()
+    vol = float(daily_close.pct_change().iloc[-31:-1].std()) if len(daily_close) > 10 else 0.0
+    lev = float(leverage or (np.clip(TARGET_VOL / vol, 1.0, MAX_LEVERAGE) if vol > 0 else 1.0))
+    catalog = tactics.catalog()
+    sig = tactics.signals(x, catalog)
+    history = tactics.daily(x, catalog)
+    past = history[(history.index >= lo - 90 * DAY) & (history.index < lo)]
+    pair_sharpe = past.mean() / past.std().replace(0, np.nan) * np.sqrt(365)
+    record = _record()
+    rows = []
+    for t in catalog:
+        eq = tactics.curve(x, t, sig[t.signal], lev, start)
+        rows.append({
+            "key": t.key,
+            "label": t.describe(),
+            "rule": t.rule,
+            "family": family(t.rule),
+            "overlay": t.overlay.name,
+            "pnl": round(capital * float(eq[-1] - 1), 2),
+            "return_pct": round(100 * float(eq[-1] - 1), 2),
+            "worst_pct": round(100 * float(eq[start:].min() - 1), 2),
+            "in_market_hours": int((tactics.targets(sig[t.signal], start)[start:] != 0).sum()),
+            "pair_90d_sharpe": None if pd.isna(pair_sharpe.get(t.key)) else round(float(pair_sharpe[t.key]), 2),
+            "record": record.get(t.key, {}),
         })
-    trades = []
-    for r in result.trades.to_dict("records"):
-        trades.append({
-            **{k: r[k] for k in ("side", "entry", "exit", "leverage", "reason")},
-            "entry_time": _dt(r["entry_time"]).strftime("%Y-%m-%d %H:%M"),
-            "exit_time": _dt(r["exit_time"]).strftime("%Y-%m-%d %H:%M"),
-            "margin": round(r["margin"], 2),
-            "notional": round(r["notional"], 2),
-            "pnl": round(r["pnl"], 2),
-            "r": round(r["r"], 2),
-            "stop": r["stop"],
-            "take": r["take"],
-        })
-    pnl = float(result.trades.pnl.sum()) if len(result.trades) else 0.0
+    rows.sort(key=lambda r: -r["pnl"])
+    reference = "ema_cross(fast=50,slow=200)|signal"
+    seen: set = set()
+    top = []
+    for r in rows:
+        marks = {r["rule"], (r["pnl"], r["in_market_hours"], r["worst_pct"])}
+        if not marks & seen:
+            top.append(r["key"])
+            seen |= marks
+    picks: dict[str, str] = {}
+    for key, role in [*zip(top[:3], ("best", "second", "third"), strict=False), (reference, "reference"), (rows[-1]["key"], "worst")]:
+        picks.setdefault(key, role)
+    atr = float(np.nan_to_num(x.f["atr_pct"].iat[start - 1])) if "atr_pct" in x.f and start > 0 else 0.0
+    pnl_of = {r["key"]: r["pnl"] for r in rows}
+    detail = []
+    for key, role in picks.items():
+        t = tactics.by_key(key)
+        trades = _trades(x, t, sig[t.signal], lev, start, capital)
+        detail.append({"key": key, "role": role, "title": t.title, "label": t.describe(), "about": t.explain(atr), "pnl": pnl_of[key], "trades": trades})
+    view = bars[bars.open_time >= lo - 24 * HOUR]
+    move = float(bars.close.iloc[-1] / (bars.close.iloc[start - 1] if start > 0 else bars.open.iloc[0]) - 1)
+    pnl = np.array([r["pnl"] for r in rows])
+    book, book_known = _book(symbol, lo, hi)
     doc = {
         "symbol": symbol,
-        "day": f"{day:%Y-%m-%d}",
-        "source": str(csv) if csv else "Binance USDⓈ-M 1h klines",
-        "model": trained,
-        "policy": policy.describe(),
+        "from": f"{day:%Y-%m-%d}",
+        "to": _dt(hi - DAY).strftime("%Y-%m-%d"),
+        "days": days,
+        "source": "ваш файл (без контексту BTC)" if csv else "Binance USDⓈ-M, свічки 1 год",
+        "bars_in_window": len(bars) - start,
+        "warmup_bars": start,
+        "capital": capital,
+        "leverage": round(lev, 2),
+        "leverage_rule": "задано вами" if leverage else AUTO.format(target=100 * TARGET_VOL, vol=100 * vol, top=MAX_LEVERAGE).replace(".", ","),
+        "price_move_pct": round(100 * move, 2),
+        "atr_pct": round(100 * atr, 2),
+        "bot": _bot(lo, hi),
         "summary": {
-            "start_equity": capital,
-            "trades": len(trades),
-            "winners": sum(t["pnl"] > 0 for t in trades),
-            "pnl": round(pnl, 2),
-            "return_pct": round(100 * pnl / capital, 2),
-            "day_move_pct": round(100 * (c[np.searchsorted(bars.open_time.to_numpy(), hi - HOUR)] / c[max(np.searchsorted(bars.open_time.to_numpy(), lo) - 1, 0)] - 1), 2)
-            if hi - HOUR <= last_t
-            else None,
+            "tactics": len(rows),
+            "positive": int((pnl > 0).sum()),
+            "negative": int((pnl < 0).sum()),
+            "flat": int((pnl == 0).sum()),
+            "median_pnl": round(float(np.median(pnl)), 2),
+            "total_pnl": round(float(pnl.sum()), 2),
+            "tied_best": int((pnl == pnl[0]).sum()),
+            "robust": sum(all((r["record"].get(k) or -1) > 0 for k in ("dev", "holdout", "untouched")) for r in rows),
+            "best": rows[0]["key"],
+            "worst": rows[-1]["key"],
         },
-        "trades": trades,
-        "hours": hours,
+        "families": {
+            f: {
+                "tactics": sum(r["family"] == f for r in rows),
+                "positive": sum(r["family"] == f and r["pnl"] > 0 for r in rows),
+                "pnl_sum": round(sum(r["pnl"] for r in rows if r["family"] == f), 2),
+            }
+            for f in ("trend", "revert", "pattern", "ml")
+        },
+        "reference": reference,
+        "book": book,
+        "book_known": book_known,
+        "candles": [
+            {"time": int(r.open_time) // 1000, "open": float(r.open), "high": float(r.high), "low": float(r.low), "close": float(r.close)} for r in view.itertuples(index=False)
+        ],
+        "tactics": rows,
+        "detail": detail,
     }
     out = settings.reports_dir / "quant" / "day"
     out.mkdir(parents=True, exist_ok=True)
-    stem = f"{symbol}_{day:%Y-%m-%d}"
-    doc["report"], doc["chart"] = str(out / f"{stem}.md"), str(out / f"{stem}.html")
-    (out / f"{stem}.json").write_text(json.dumps(doc, indent=2, default=str))
-    (out / f"{stem}.md").write_text(markdown(doc))
-    view = bars[(bars.open_time >= lo - 12 * HOUR) & (bars.open_time < max([hi] + [int(r["exit_time"]) + 2 * HOUR for r in result.trades.to_dict("records")]))]
-    (out / f"{stem}.html").write_text(chart(doc, view, result.trades))
+    doc["report"] = str(out / f"{symbol}_{day:%Y-%m-%d}_{days}d.json")
+    Path(doc["report"]).write_text(json.dumps(doc, default=str))
     return doc
-
-
-def markdown(doc: dict) -> str:
-    s = doc["summary"]
-    lines = [
-        f"# Бот «Квант» на {doc['symbol']} за {doc['day']}",
-        "",
-        f"Котирування: {doc['source']}. Модель: {doc['model']}. Політика: {doc['policy']}.",
-        "",
-        f"**Угод: {s['trades']}, прибуткових: {s['winners']}, P&L: ${s['pnl']:+,.2f} ({s['return_pct']:+.2f}% від ${s['start_equity']:,.0f}).**",
-        f"Рух ціни за день: {s['day_move_pct']}%.",
-        "",
-    ]
-    if doc["trades"]:
-        lines += ["| вхід (UTC) | сторона | плече | маржа | вхід | вихід (UTC) | вихід | причина | P&L | R |", "|---|---|---|---|---|---|---|---|---|---|"]
-        for t in doc["trades"]:
-            cells = [t["entry_time"], t["side"], f"{t['leverage']:g}x", f"${t['margin']:,.0f}", f"{t['entry']:.6g}", t["exit_time"], f"{t['exit']:.6g}", t["reason"]]
-            lines.append("| " + " | ".join([*cells, f"${t['pnl']:+,.2f}", f"{t['r']:+.2f}"]) + " |")
-    lines += ["", "## Що бот бачив щогодини", "", "| бар (UTC) | очікуване R лонг | очікуване R шорт | рішення | чому (внесок ознак) |", "|---|---|---|---|---|"]
-    for h in doc["hours"]:
-        lines.append(f"| {h['bar']} | {h['expected_r_long']:+.3f} | {h['expected_r_short']:+.3f} | {h['action']} | {'; '.join(h['why'])} |")
-    return "\n".join(lines) + "\n"
-
-
-def chart(doc: dict, view: pd.DataFrame, trades: pd.DataFrame) -> str:
-    if view.empty:
-        return "<p>no bars</p>"
-    w, h, pad = 760, 300, 46
-    t = view.open_time.to_numpy()
-    lo_p, hi_p = float(view.low.min()), float(view.high.max())
-    span = (hi_p - lo_p) or hi_p * 0.01
-    lo_p, hi_p = lo_p - span * 0.05, hi_p + span * 0.05
-    step = (w - pad - 10) / len(view)
-
-    def x(ms: float) -> float:
-        return pad + (float(ms) - t[0]) / HOUR * step + step / 2
-
-    def y(p: float) -> float:
-        return 10 + (h - 40) * (1 - (p - lo_p) / (hi_p - lo_p))
-
-    parts = [f'<svg viewBox="0 0 {w} {h}" width="{w}" height="{h}">']
-    for frac in (0.0, 0.5, 1.0):
-        p = lo_p + (hi_p - lo_p) * frac
-        parts.append(f'<line x1="{pad}" x2="{w - 10}" y1="{y(p):.1f}" y2="{y(p):.1f}" stroke="var(--border)"/>')
-        parts.append(f'<text x="{pad - 4}" y="{y(p) + 4:.1f}" font-size="10" text-anchor="end" fill="var(--muted-foreground)">{p:.5g}</text>')
-    day_lo = x(_ms(datetime.fromisoformat(doc["day"]).replace(tzinfo=UTC))) - step / 2
-    parts.append(f'<rect x="{day_lo:.1f}" y="10" width="{min(24 * step, w - 10 - day_lo):.1f}" height="{h - 40}" fill="var(--accent)" opacity="0.06"/>')
-    for r in view.itertuples(index=False):
-        color = "#16a34a" if r.close >= r.open else "#dc2626"
-        cx = x(r.open_time)
-        parts.append(f'<line x1="{cx:.1f}" x2="{cx:.1f}" y1="{y(r.high):.1f}" y2="{y(r.low):.1f}" stroke="{color}"/>')
-        top, bottom = y(max(r.open, r.close)), y(min(r.open, r.close))
-        parts.append(f'<rect x="{cx - step * 0.35:.1f}" y="{top:.1f}" width="{step * 0.7:.1f}" height="{max(bottom - top, 1):.1f}" fill="{color}"/>')
-    for r in trades.to_dict("records") if len(trades) else []:
-        x0, x1 = x(r["entry_time"]), x(r["exit_time"])
-        up = r["side"] == "LONG"
-        parts.append(f'<line x1="{x0:.1f}" x2="{x1:.1f}" y1="{y(r["stop"]):.1f}" y2="{y(r["stop"]):.1f}" stroke="#dc2626" stroke-dasharray="4 3"/>')
-        parts.append(f'<line x1="{x0:.1f}" x2="{x1:.1f}" y1="{y(r["take"]):.1f}" y2="{y(r["take"]):.1f}" stroke="#16a34a" stroke-dasharray="4 3"/>')
-        ye = y(r["entry"])
-        tri = f"{x0:.1f},{ye + (8 if up else -8):.1f} {x0 - 6:.1f},{ye + (16 if up else -16):.1f} {x0 + 6:.1f},{ye + (16 if up else -16):.1f}"
-        parts.append(f'<polygon points="{tri}" fill="var(--accent)"/>')
-        parts.append(f'<circle cx="{x1:.1f}" cy="{y(r["exit"]):.1f}" r="5" fill="{"#16a34a" if r["pnl"] > 0 else "#dc2626"}" stroke="var(--foreground)"/>')
-    parts.append(f'<text x="{pad}" y="{h - 8}" font-size="10" fill="var(--muted-foreground)">{_dt(int(t[0])):%d.%m %H:%M}</text>')
-    parts.append(f'<text x="{w - 10}" y="{h - 8}" font-size="10" text-anchor="end" fill="var(--muted-foreground)">{_dt(int(t[-1])):%d.%m %H:%M} UTC</text>')
-    parts.append("</svg>")
-    s = doc["summary"]
-    tone = "#16a34a" if s["pnl"] > 0 else ("#dc2626" if s["pnl"] < 0 else "inherit")
-    title = f'<b>{doc["symbol"]} · {doc["day"]}</b> — угод: {s["trades"]}, P&amp;L: <b style="color:{tone}">${s["pnl"]:+,.2f}</b> ({s["return_pct"]:+.2f}%)'
-    head = f'<p style="font-size:13px;margin:0 0 6px">{title}, рух ціни за день {s["day_move_pct"]}%</p>'
-    legend = (
-        '<p style="font-size:11px;color:var(--muted-foreground);margin:4px 0 0">'
-        "▲ вхід · ● вихід (зелений — прибуток) · пунктир: стоп (червоний) і тейк (зелений) · підсвічено обраний день</p>"
-    )
-    return head + "".join(parts) + legend

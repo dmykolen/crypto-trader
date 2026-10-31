@@ -117,7 +117,6 @@ def panel(bars: dict[str, pd.DataFrame]) -> Panel:
     full = pd.RangeIndex(int(wide["close"].index.min()), int(wide["close"].index.max()) + DAY, DAY)
     wide = {k: v.reindex(full) for k, v in wide.items()}
     r = wide["close"].pct_change(fill_method=None)
-    r = r.where((r > -0.95) & (r < 3.0))
     return Panel(full.to_numpy(), wide["close"].columns.to_numpy(), wide["open"], wide["high"], wide["low"], wide["close"], wide["qv"], wide["funding"].fillna(0.0), r)
 
 
@@ -130,10 +129,10 @@ def forward(first_day: datetime, last_day: datetime | None = None, capital: floa
     edge = neutral.daily_scores(raw, DECISION_HOUR)["edge"]
     xs7 = raw.pivot_table(index=(raw.open_time // DAY * DAY), columns="symbol", values="xs", aggfunc="last")
     family = {"blend": neutral.blend(xs7, edge), "edge": edge}
-    w = neutral.production_weights(p, family)
-    ret = neutral.weights_returns(p, w)
+    ret, w = neutral.drift(p, neutral.production_weights(p, family), band=neutral.ENSEMBLE["band"])
     ret_full = neutral.weights_returns(p, neutral.ensemble_weights(p, family, {**neutral.ENSEMBLE, "family": "edge"}))
     days = ret[(ret.index >= _ms(first_day)) & (ret.index <= _ms(last_day))]
+    neutral.held_long(w, _ms(first_day), _ms(last_day) + 2 * DAY).to_parquet(settings.data_dir / "quant" / "live" / "forward_book.parquet", index=False)
     equity = capital * (1 + days).cumprod()
     latest = w.loc[w.index <= _ms(last_day)].iloc[-1]
     book = latest[latest.abs() > 1e-9].sort_values()

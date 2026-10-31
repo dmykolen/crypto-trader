@@ -105,6 +105,7 @@ def status() -> dict[str, dict]:
             "uptime_s": round(uptime) if uptime is not None else None,
             "managed": managed,
             "log": str(log_path(bot)) if log_path(bot).exists() else None,
+            "last_log_at": datetime.fromtimestamp(log_path(bot).stat().st_mtime, UTC).isoformat(timespec="seconds") if log_path(bot).exists() else None,
             "last_stop": state.get("stopped_at"),
         }
     return out
@@ -165,6 +166,16 @@ def stop(bot: str, timeout: float = 15.0) -> dict:
         with log_path(bot).open("a") as log:
             log.write(f"=== {state['stopped_at']} stopped {bot} (pid {pid}{', killed' if forced else ''}) ===\n")
     return {"bot": bot, "pid": pid, "forced": forced}
+
+
+def restore() -> list[str]:
+    started = []
+    for bot in BOTS:
+        state = json.loads(_state_path(bot).read_text()) if _state_path(bot).exists() else {}
+        if state.get("pid") and not state.get("stopped_at") and state.get("mode") == "paper" and not status()[bot]["running"]:
+            start(bot, "paper")
+            started.append(bot)
+    return started
 
 
 def logs(bot: str, lines: int = 200) -> list[str]:

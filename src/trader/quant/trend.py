@@ -74,7 +74,6 @@ def load_panel() -> Panel:
     full = pd.RangeIndex(int(wide["close"].index.min()), int(wide["close"].index.max()) + DAY, DAY)
     wide = {k: v.reindex(full) for k, v in wide.items()}
     r = wide["close"].pct_change(fill_method=None)
-    r = r.where((r > -0.95) & (r < 3.0))
     return Panel(full.to_numpy(), wide["close"].columns.to_numpy(), wide["open"], wide["high"], wide["low"], wide["close"], wide["qv"], wide["funding"].fillna(0.0), r)
 
 

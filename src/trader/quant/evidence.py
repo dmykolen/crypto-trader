@@ -30,7 +30,9 @@ def _ms(text: str) -> int:
 def build(report=lambda text: None) -> dict:
     from trader.services import jobs
 
-    history = jobs.run_quant_period(jobs.QuantPeriod(start=date(2021, 7, 1), end=date(2026, 9, 30)), report)
+    books: list[pd.DataFrame] = []
+    history = jobs.run_quant_period(jobs.QuantPeriod(start=date(2021, 7, 1), end=date(2026, 9, 30)), report, books)
+    pd.concat(books, ignore_index=True).to_parquet(settings.data_dir / "quant" / "book_history.parquet", index=False)
     ret = pd.Series(history["returns"], index=[_ms(d) for d in history["days"]])
     forward = settings.reports_dir / "quant" / "forward.json"
     if forward.exists():

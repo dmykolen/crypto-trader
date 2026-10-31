@@ -224,6 +224,15 @@ def run() -> None:
     asyncio.run(trading.run_forever())
 
 
+@app.command(help="Start-up entry for macOS autostart: wait for the port, bring back the bots that were running on virtual money, then serve the control room.")
+def boot(port: int = 8710) -> None:
+    from trader.services import processes, supervisor
+
+    supervisor.wait_for_port(port)
+    processes.restore()
+    serve(port=port)
+
+
 @app.command()
 def serve(host: str = "127.0.0.1", port: int = 8710) -> None:
     """Start the API and the web control room on http://127.0.0.1:8710 (RUN_WATCHER=true also runs the trading loop inside it)."""

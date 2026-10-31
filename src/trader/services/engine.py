@@ -102,11 +102,12 @@ def _walk(o, h, lo, c, fr, i, side, sl, tp, trail, max_bars, lev, fee, slip, sto
 
 
 @njit(cache=True)
-def _simulate(o, h, lo, c, fr, target, sl, tp, trail, max_bars, lev, margin_frac, fee, slip, stop_slip, mmr):
+def _simulate(o, h, lo, c, fr, target, sl, tp, trail, max_bars, lev, margin_frac, fee, slip, stop_slip, mmr, cooldown=0):
     """Run a target-position series. Returns (equity curve per bar close, trades[k] = entry, exit, side, ret, reason).
 
     After a stop / take-profit / time exit the strategy re-enters only once its target changes, so a persistent
-    signal does not immediately re-open the trade that was just stopped out.
+    signal does not immediately re-open the trade that was just stopped out; with `cooldown` > 0 it also re-opens
+    the same side once that many bars have passed and the target still holds it.
     """
     n = len(o)
     equity = np.ones(n)
@@ -115,16 +116,16 @@ def _simulate(o, h, lo, c, fr, target, sl, tp, trail, max_bars, lev, margin_frac
     k = 0
     cash = 1.0
     blocked = 0
+    freed = 0
     i = 0
     while i < n:
         side = target[i]
+        if blocked != 0 and (side != blocked or (cooldown > 0 and i - freed >= cooldown)):
+            blocked = 0
         if side == 0 or side == blocked:
-            if side != blocked:
-                blocked = 0
             equity[i] = cash
             i += 1
             continue
-        blocked = 0
         stake = cash * margin_frac
         j, ret, reason = _walk(o, h, lo, c, fr, i, side, sl[i], tp[i], trail[i], max_bars[i], lev, fee, slip, stop_slip, mmr, target, mtm)
         for b in range(i, j + 1):
@@ -138,7 +139,7 @@ def _simulate(o, h, lo, c, fr, target, sl, tp, trail, max_bars, lev, margin_frac
         if reason in (REVERSAL, SIGNAL):
             i = j
         else:
-            blocked = side
+            blocked, freed = side, j + 1
             i = j + 1
     return equity, trades[:k]
 
@@ -188,6 +189,7 @@ def backtest(
     tp: float | np.ndarray = 0.0,
     trail: float | np.ndarray = 0.0,
     max_bars: int | np.ndarray = 10**9,
+    cooldown: int = 0,
     costs: Costs | None = None,
     capital: float = 1000.0,
 ) -> BacktestResult:
@@ -212,6 +214,7 @@ def backtest(
         costs.slip,
         costs.stop_slip,
         costs.mmr,
+        int(cooldown),
     )
     index = pd.to_datetime(bars.open_time.to_numpy(), unit="ms", utc=True)
     curve = pd.Series(equity * capital, index=index, name="equity")

@@ -1,11 +1,17 @@
 """HTTP API for the web UI — the bots' state and control, the paper and live books, historical-test jobs, charts."""
 
+import asyncio
+import hashlib
 import json
 import time
+from collections.abc import AsyncIterable
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, HTTPException, Query
+import pandas as pd
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.sse import EventSourceResponse
 from pydantic import BaseModel
 from sqlmodel import Session, col, select
 
@@ -14,8 +20,8 @@ from trader.core.config import settings
 from trader.core.db import create_db_and_tables, engine
 from trader.integrations import binance
 from trader.models import NewsItem, Trade
-from trader.quant import evidence, neutral, paper, retrain
-from trader.services import jobs, processes
+from trader.quant import evidence, limit_test, neutral, paper, retrain, why
+from trader.services import jobs, processes, supervisor, trading
 from trader.status import notice_bot, quant_bot
 
 router = APIRouter(prefix="/api/v1", tags=["ui"])
@@ -203,6 +209,11 @@ def quant_ledger() -> dict:
     }
 
 
+@router.get("/quant/limit-test")
+def quant_limit_test() -> dict:
+    return limit_test.summary()
+
+
 @router.get("/quant/live")
 def quant_live() -> dict:
     from trader.quant import live_exec
@@ -260,6 +271,11 @@ def notice_feed(limit: Annotated[int, Query(ge=1, le=500)] = 100, events_only: b
     with Session(engine) as session:
         query = select(NewsItem).where(col(NewsItem.source).in_(["binance", "upbit"])).order_by(col(NewsItem.published_at).desc()).limit(limit * (4 if events_only else 1))
         items = list(session.exec(query))
+    decided: dict[str, list[dict]] = {}
+    path = trading.decisions_path()
+    for line in path.read_text().splitlines()[-5000:] if path.exists() else []:
+        d = json.loads(line)
+        decided.setdefault(d.get("news_id") or "", []).append({k: d[k] for k in ("at", "event", "token", "outcome", "detail")})
     rows = []
     for item in items:
         kinds = [e for e in item.events or [] if e.get("type")]
@@ -276,6 +292,7 @@ def notice_feed(limit: Annotated[int, Query(ge=1, le=500)] = 100, events_only: b
             "seen_at": seen.isoformat(),
             "latency_s": round((seen - published).total_seconds(), 1),
             "events": [{"type": e.get("type"), "symbols": e.get("symbols") or ([e["symbol"]] if e.get("symbol") else [])} for e in kinds],
+            "decisions": decided.get(item.id, []),
         })
     return rows[:limit]
 
@@ -304,6 +321,26 @@ def market_klines(
         return {"symbol": symbol.upper(), "bars": []}
     rows = bars[["open_time", "open", "high", "low", "close", "volume"]].astype(float).to_numpy().tolist()
     return {"symbol": symbol.upper(), "interval": interval, "bars": [[int(r[0]), *r[1:]] for r in rows]}
+
+
+@router.post("/uploads", status_code=201)
+async def upload_quotes(request: Request) -> dict:
+    from trader.quant import day
+
+    body = await request.body()
+    if not body or len(body) > 30_000_000:
+        raise HTTPException(413, "CSV must be between 1 byte and 30 MB")
+    key = hashlib.sha256(body).hexdigest()[:16]
+    path = jobs.uploads_dir() / f"{key}.csv"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(body)
+    try:
+        bars = day.from_csv(path)
+    except (ValueError, KeyError, pd.errors.ParserError) as exc:
+        path.unlink(missing_ok=True)
+        raise HTTPException(422, str(exc)) from exc
+    first, last = (datetime.fromtimestamp(int(t) / 1000, UTC) for t in (bars.open_time.min(), bars.open_time.max()))
+    return {"upload": key, "bars": len(bars), "from": _iso(first), "to": _iso(last)}
 
 
 class JobBody(BaseModel):
@@ -345,3 +382,121 @@ def cancel_job(job_id: str) -> dict:
 @router.get("/system")
 def system() -> dict:
     return system_info()
+
+
+class Toggle(BaseModel):
+    enabled: bool
+
+
+@router.get("/processes")
+def process_list() -> dict:
+    return {"now": datetime.now(UTC).isoformat(timespec="seconds"), "processes": supervisor.inventory()}
+
+
+@router.post("/processes/{key}/stop")
+def process_stop(key: str) -> dict:
+    try:
+        return supervisor.stop(key)
+    except (supervisor.SupervisorError, processes.ProcessError, jobs.JobError) as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+@router.post("/bots/{bot}/restart")
+def restart_bot(bot: BotKey) -> dict:
+    try:
+        supervisor.restart_bot(bot)
+    except (supervisor.SupervisorError, processes.ProcessError) as exc:
+        raise HTTPException(409, str(exc)) from exc
+    return processes.status()[bot]
+
+
+@router.post("/server/restart")
+def restart_server() -> dict:
+    return supervisor.restart_server()
+
+
+@router.get("/autostart")
+def autostart() -> dict:
+    return supervisor.autostart()
+
+
+@router.post("/autostart")
+def set_autostart(body: Toggle) -> dict:
+    try:
+        return supervisor.set_autostart(body.enabled)
+    except supervisor.SupervisorError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+@router.get("/disk")
+def disk() -> dict:
+    return supervisor.disk()
+
+
+@router.post("/disk/clean")
+def clean_disk() -> dict:
+    return supervisor.clean_caches()
+
+
+@router.get("/schedule")
+def schedule() -> dict:
+    return {"items": supervisor.schedule(), "errors": supervisor.errors()}
+
+
+def _log(source: str) -> Path:
+    try:
+        return supervisor.log_file(source)
+    except (supervisor.SupervisorError, jobs.JobError) as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@router.get("/logs/{source}")
+def log_tail(source: str, lines: Annotated[int, Query(ge=10, le=2000)] = 300) -> dict:
+    text, _ = supervisor.tail(_log(source), lines)
+    return {"source": source, "lines": text}
+
+
+@router.get("/logs/{source}/stream", response_class=EventSourceResponse)
+async def log_stream(path: Annotated[Path, Depends(_log)], poll: float = 0.6) -> AsyncIterable[dict]:
+    lines, position = supervisor.tail(path, 300)
+    yield {"lines": lines, "reset": True}
+    while True:
+        await asyncio.sleep(poll)
+        size = path.stat().st_size if path.exists() else 0
+        if size < position:
+            position = 0
+        if size <= position:
+            continue
+        with path.open("rb") as f:
+            f.seek(position)
+            data = f.read(size - position)
+        cut = data.rfind(b"\n")
+        if cut < 0:
+            continue
+        position += cut + 1
+        if fresh := [x for x in data[:cut].decode("utf-8", errors="replace").splitlines() if x]:
+            yield {"lines": fresh}
+
+
+def _latest_day() -> str:
+    history = json.loads(paper.ledger_path().read_text())["history"] if paper.ledger_path().exists() else []
+    if not history:
+        raise HTTPException(404, "the virtual account has no rebalances yet")
+    return history[-1]["day"]
+
+
+@router.get("/quant/why")
+def quant_why(symbol: str, day: str | None = None) -> dict:
+    try:
+        return why.explain(symbol.upper(), day or _latest_day())
+    except (LookupError, FileNotFoundError) as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@router.get("/quant/ranks")
+def quant_ranks(day: str | None = None) -> dict:
+    day = day or _latest_day()
+    try:
+        return {"day": day, "ranks": why.ranks(day)}
+    except (LookupError, FileNotFoundError) as exc:
+        raise HTTPException(404, str(exc)) from exc

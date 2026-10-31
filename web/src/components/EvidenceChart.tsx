@@ -58,13 +58,13 @@ export function EvidenceChart({ evidence, height = 300 }: Props) {
           const xb = geo.x(b)
           return (
             <g key={p.key}>
-              <rect x={xa} y={T} width={Math.max(xb - xa, 3)} height={H - T - B} fill="var(--quant)" opacity={SHADES[k] ?? "0.06"} />
+              <rect x={xa} y={T} width={Math.max(xb - xa, 3)} height={H - T - B} fill="var(--text)" opacity={SHADES[k] ?? "0.06"} />
               <text
                 x={xb - xa > 70 ? (xa + xb) / 2 : Math.min(xb, W - R)}
                 y={T - 9}
                 textAnchor={xb - xa > 70 ? "middle" : "end"}
                 fontSize={11}
-                fill="var(--ink-2)"
+                fill="var(--text-2)"
                 style={{ fontFamily: "var(--font-head)", fontWeight: 700 }}
               >
                 {p.name}
@@ -74,22 +74,22 @@ export function EvidenceChart({ evidence, height = 300 }: Props) {
         })}
         {geo.ticks.map((v) => (
           <g key={v}>
-            <line x1={L} x2={W - R} y1={geo.y(v)} y2={geo.y(v)} stroke="var(--rule)" strokeWidth={v === 1000 ? 1 : 0.6} strokeDasharray={v === 1000 ? undefined : "2 4"} />
-            <text x={L - 6} y={geo.y(v) + 3.5} textAnchor="end" fontSize={10} fill="var(--ink-3)" className="num">
+            <line x1={L} x2={W - R} y1={geo.y(v)} y2={geo.y(v)} stroke="var(--line)" strokeWidth={v === 1000 ? 1 : 0.6} strokeDasharray={v === 1000 ? undefined : "2 4"} />
+            <text x={L - 6} y={geo.y(v) + 3.5} textAnchor="end" fontSize={10} fill="var(--text-3)" className="num">
               ${v.toLocaleString("uk-UA")}
             </text>
           </g>
         ))}
         {geo.years.map(({ yr, i }) => (
-          <text key={yr} x={geo.x(i)} y={H - 8} textAnchor="middle" fontSize={10} fill="var(--ink-3)" className="num">
+          <text key={yr} x={geo.x(i)} y={H - 8} textAnchor="middle" fontSize={10} fill="var(--text-3)" className="num">
             {yr}
           </text>
         ))}
-        <polyline points={geo.points} fill="none" stroke="var(--ink)" strokeWidth={1.5} strokeLinejoin="round" />
-        <line x1={geo.x(at)} x2={geo.x(at)} y1={T} y2={H - B} stroke="var(--ink-3)" strokeWidth={0.75} />
-        <circle cx={geo.x(at)} cy={geo.y(atEquity)} r={3.2} fill="var(--quant)" stroke="var(--paper)" strokeWidth={1.5} />
+        <polyline points={geo.points} fill="none" stroke="var(--data)" strokeWidth={1.75} strokeLinejoin="round" />
+        <line x1={geo.x(at)} x2={geo.x(at)} y1={T} y2={H - B} stroke="var(--text-3)" strokeWidth={0.75} />
+        <circle cx={geo.x(at)} cy={geo.y(atEquity)} r={3.2} fill="var(--data)" stroke="var(--bg)" strokeWidth={1.5} />
       </svg>
-      <figcaption className="num mt-1 flex flex-wrap gap-x-4 text-[12px] text-ink-2">
+      <figcaption className="num mt-1 flex flex-wrap gap-x-4 text-[12px] text-text-2">
         <span>{atDay ? `${hover === null ? "останній день у даних: " : ""}${when.day(atDay)}` : ""}</span>
         <span>капітал {fmt.usd(atEquity)}</span>
         <span>просідання {fmt.pct(100 * (evidence.drawdown[at] ?? 0), 1)}</span>

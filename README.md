@@ -145,14 +145,22 @@ lives in the `/data` volume).
 
 ## Bot #2 «Квант» (market-neutral book)
 
+Out-of-sample results of the production book on $1000 at 2x (`docs/RESEARCH.md`, Q41–Q48, rebuilt 2026-10-28 with real
+moves and drifted weights): untouched 2021-07…2023-06 **+34 %, Sharpe 0.64, max drawdown −37 %, worst day −23 %**;
+2025-01…2026-09 **+85 %, Sharpe 1.03, max drawdown −40 %, worst day −19 %**; forward 1–27.10.2026 +0.5 %. Earlier
+figures (+52.5 % / +114 %) treated days with moves above +300 % as zero and are withdrawn. Timing a single pair with
+indicators or chart patterns (305 tactics, chosen per token or not) lost money out of sample (Q43–Q44).
+
 ```bash
 uv run trader bots                          # the bots of this app
 uv run trader status                        # how each bot is doing on its paper account right now
 uv run trader quant research                # features + labels for every liquid perp → walk-forward model → policy report
 uv run trader quant neutral                 # market-neutral books from the model ranking (chosen on 2023-07…2024-12)
 uv run trader quant book 2026-09-29         # the book held on a day: every long/short, weight, move, P&L on $1000
-uv run trader quant day SOLUSDT 2026-10-22  # one pair, one day: hourly view of what the model saw and did
+uv run trader quant day SOLUSDT 2026-10-27  # one pair, one day: 305 indicator / pattern / model tactics with leverage,
+                                            # stops, trailing and re-entry, each next to its 2021–2026 record and the book's position
 uv run trader quant day XUSDT --csv q.csv   # the same on your own quotes (time, open, high, low, close[, volume])
+uv run trader quant tactics                 # walk-forward per-token tactic selection over every liquid perp (~30 s)
 uv run trader quant forward 2026-10-01      # forward test on days no model saw (fresh quotes from Binance)
 uv run trader quant paper --loop            # paper-trade the book: rebalance daily at 00:15 UTC, ledger in data/quant/paper/
 ```
@@ -171,8 +179,8 @@ A market-page desk for both bots, in Ukrainian, day and night editions:
   tests), the Quant book marked to Binance prices, and the evidence strip for every test period.
 * **Анонси / Квант** — per-bot pages: playbooks by entry latency, the notice journal, trades; the paper account's
   equity, the full book, the rebalance history and the production configuration.
-* **Лабораторія** — historical tests run as background jobs that survive page reloads: the Quant book on any
-  2021–2026 period with your parameters, the book of a single day, a forward test on fresh quotes, a replay of the
+* **Лабораторія** — historical tests run as background jobs that survive page reloads: one pair on any day or your
+  own CSV (every tactic's trades on the candles), the Quant book on any 2021–2026 period with your parameters, the book of a single day, a forward test on fresh quotes, a replay of the
   notice bot over past days, quarterly retraining and the evidence rebuild. Results come with equity, drawdown,
   monthly returns and the final book.
 * **Докази** — the production book's equity 2021–2026 on a log scale, period by period, and what in it is clean and
@@ -182,4 +190,4 @@ A market-page desk for both bots, in Ukrainian, day and night editions:
 Bots start and stop from the UI. Paper is the default; real money needs Binance API keys in `.env` and the typed
 phrase `LIVE NOTICE` / `LIVE QUANT` in a confirmation that states the bot's real-money limits. The API only answers
 on localhost and state changes need the UI's own header. Dev server with hot reload: `cd web && pnpm dev`
-(proxies `/api` to `trader serve`). UI checks: `cd web && pnpm typecheck && pnpm test`. Design system: `DESIGN.md`.
+(proxies `/api` to `trader serve`). UI checks: `cd web && pnpm typecheck && pnpm test`. Design system: `docs/DESIGN.md`.

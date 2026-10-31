@@ -149,6 +149,9 @@ class FuturesREST:
     def last_price(self, symbol: str) -> float:
         return float(self._get("/fapi/v1/ticker/price", symbol=symbol)["price"])
 
+    def book_tickers(self) -> list[dict]:
+        return self._get("/fapi/v1/ticker/bookTicker")
+
 
 async def announcements(client: httpx.AsyncClient, catalog_id: int, page: int = 1, page_size: int = 20) -> list[dict]:
     """One page of a CMS catalog, newest first → [{id, code, title, releaseDate(ms)}]. Backs off on 418/429 (≈3 min in total)."""

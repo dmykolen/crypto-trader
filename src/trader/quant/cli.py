@@ -1,4 +1,3 @@
-import asyncio
 import json
 import logging
 from datetime import UTC, datetime
@@ -62,16 +61,29 @@ def run_all(min_volume: Annotated[float, typer.Option()] = 10e6) -> None:
 @quant.command("day")
 def day(
     symbol: Annotated[str, typer.Argument(help="e.g. SOLUSDT")],
-    when: Annotated[str, typer.Argument(help="UTC day, YYYY-MM-DD")] = "",
-    csv: Annotated[Path | None, typer.Option(help="your own quotes: CSV with time + open/high/low/close[/volume]")] = None,
-    theta: Annotated[float | None, typer.Option(help="override the entry threshold (expected R)")] = None,
+    when: Annotated[str, typer.Argument(help="first UTC day, YYYY-MM-DD (default: yesterday)")] = "",
+    days: Annotated[int, typer.Option(help="how many days from that day")] = 1,
+    csv: Annotated[Path | None, typer.Option(help="your own quotes: CSV with time + open/high/low/close[/volume], 1h or finer")] = None,
+    leverage: Annotated[float | None, typer.Option(help="leverage for every tactic (default: daily account swing ≈ 2 %, ≤ 5x)")] = None,
 ) -> None:
-    """Feed one day of quotes to the bot and see every decision, trade and the P&L at once."""
-    from trader.quant import day as day_replay
+    """Feed one pair's quotes for a day (or several) and see at once what each of the 305 tactics and the market-neutral book did with it."""
+    from trader.quant import day as lab
 
     target = datetime.fromisoformat(when).replace(tzinfo=UTC) if when else None
-    doc = asyncio.run(asyncio.to_thread(day_replay.replay, symbol.upper(), target, csv, theta))
-    _show({k: doc[k] for k in ("symbol", "day", "model", "policy", "summary", "report", "chart")})
+    doc = lab.run(symbol.upper(), target, days, csv, leverage)
+    _show({k: doc[k] for k in ("symbol", "from", "to", "source", "leverage", "price_move_pct", "bot", "summary", "families", "book", "report")})
+    for r in doc["tactics"][:10] + doc["tactics"][-5:]:
+        rec = r["record"]
+        console.print(f"{r['pnl']:+9.2f}$ {r['return_pct']:+7.2f}%  {r['key']:48} Sharpe dev {rec.get('dev')} holdout {rec.get('holdout')} untouched {rec.get('untouched')}")
+
+
+@quant.command("tactics")
+def tactic_study(workers: Annotated[int, typer.Option(help="parallel processes")] = 10) -> None:
+    """Walk-forward per-token tactic selection over every liquid perp (2021-2026): 305 indicator, pattern and model tactics with stops, trailing and re-entry."""
+    from trader.quant import tactic_study as study
+
+    doc = study.study(workers)
+    _show({k: doc[k] for k in ("tokens", "chosen_on_dev", "best_single_tactic_on_dev", "single_tactics_positive_share", "persistence")})
 
 
 @quant.command("trend")
@@ -131,6 +143,13 @@ def paper_trade(
         paper.loop(capital)
     else:
         _show(paper.step(capital))
+
+
+@quant.command("limits", help="Shadow test of limit orders: each paper rebalance's orders priced as market orders and as post-only limits that wait 30 min.")
+def limit_orders() -> None:
+    from trader.quant import limit_test
+
+    _show(limit_test.summary())
 
 
 @quant.command("retrain")

@@ -53,7 +53,7 @@ export function LiveArm({ bot, system, busy, error, onConfirm, onClose }: Props)
     <dialog
       ref={dialog}
       onClose={onClose}
-      className="m-auto w-[min(580px,calc(100vw-32px))] border-0 bg-paper p-0 text-ink backdrop:bg-black/60"
+      className="m-auto w-[min(580px,calc(100vw-32px))] overflow-hidden rounded-[14px] border border-line-strong bg-panel p-0 text-text backdrop:bg-bg/80 backdrop:backdrop-blur-sm"
       aria-labelledby="arm-title"
       aria-describedby="arm-what"
     >
@@ -66,22 +66,22 @@ export function LiveArm({ bot, system, busy, error, onConfirm, onClose }: Props)
         }}
       >
         <div className="flex items-start justify-between gap-4">
-          <h2 id="arm-title" className="head flex items-center gap-2 text-[1.7rem] font-extrabold text-live">
+          <h2 id="arm-title" className="display flex items-center gap-2 text-[22px] font-semibold tracking-[-0.01em] text-live">
             <ShieldAlert size={22} aria-hidden /> Реальні гроші: {bot.name}
           </h2>
-          <button type="button" className="btn btn-ghost h-7 w-7 justify-center border-rule px-0" onClick={onClose} aria-label="Скасувати">
+          <button type="button" className="btn btn-ghost h-7 w-7 justify-center border-line px-0" onClick={onClose} aria-label="Скасувати">
             <X size={15} aria-hidden />
           </button>
         </div>
-        <ul id="arm-what" className="mt-4 list-disc space-y-1.5 pl-5 text-[14px] text-ink-2">
-          <li>Паперовий процес бота зупиниться, і він стартує знову з реальними ордерами на Binance USDⓈ-M.</li>
+        <ul id="arm-what" className="mt-4 list-disc space-y-1.5 pl-5 text-[14px] text-text-2">
+          <li>Бот на віртуальних грошах зупиниться і стартує знову з реальними ордерами на Binance USDⓈ-M.</li>
           <Consequences bot={bot} system={system} />
           <li>«Зупинити» зупиняє бота, але відкриті позиції лишаються на біржі, доки ви їх не закриєте.</li>
           {system.testnet && <li>Увімкнено демо-рахунок Binance (BINANCE_TESTNET): ордери не торкаються справжніх коштів.</li>}
         </ul>
         {!ready ? (
-          <p id="arm-blocked" className="mt-5 border-l-4 border-loss bg-shade p-3 text-[13.5px]">
-            <b className="text-loss">Немає ключів Binance API.</b> Додайте <code className="font-mono text-[12.5px]">BINANCE_API_KEY</code> і{" "}
+          <p id="arm-blocked" className="mt-5 rounded-lg border border-line-strong bg-raised p-3 text-[13.5px]">
+            <b>⚠ Немає ключів Binance API.</b> Додайте <code className="font-mono text-[12.5px]">BINANCE_API_KEY</code> і{" "}
             <code className="font-mono text-[12.5px]">BINANCE_API_SECRET</code> у файл <code className="font-mono text-[12.5px]">.env</code> (дозволи: читання й ф’ючерсна торгівля, без виведення коштів) і
             перезапустіть сервер.
           </p>
@@ -91,10 +91,10 @@ export function LiveArm({ bot, system, busy, error, onConfirm, onClose }: Props)
             <input autoFocus className="field mt-2 block w-full text-[15px] tracking-wide" value={phrase} onChange={(e) => setPhrase(e.target.value)} placeholder={bot.confirm_phrase} spellCheck={false} />
           </label>
         )}
-        {error && <p className="mt-3 text-[13px] text-loss">{error}</p>}
+        {error && <p className="mt-3 text-[13px] font-semibold">⚠ {error}</p>}
         <div className="mt-6 flex flex-wrap justify-end gap-3">
           <button ref={stay} type="button" className="btn btn-ghost" onClick={onClose}>
-            Лишити папір
+            Лишити віртуальні
           </button>
           <button type="submit" className="btn btn-live" disabled={!ready || !matches || busy} aria-describedby={ready ? undefined : "arm-blocked"}>
             {busy ? "Перемикаю…" : "Торгувати реальними грошима"}

@@ -16,6 +16,7 @@ export interface BotState {
   uptime_s: number | null
   managed: boolean
   log: string | null
+  last_log_at?: string | null
   last_stop: string | null
 }
 
@@ -64,6 +65,29 @@ export interface LedgerRow {
   shorts: number
   gross: number
   return_since_start_pct: number
+  trades?: Record<string, number>
+}
+
+export type LimitVerdict = "collecting" | "cheaper" | "dearer" | "unclear"
+
+export interface LimitTest {
+  orders: number
+  enough: number
+  min_days: number
+  verdict: LimitVerdict
+  days?: number
+  first?: number
+  last?: number
+  filled_through?: number
+  filled_touch?: number
+  market_cost?: number
+  market_slippage?: number
+  limit_cost_through?: number
+  limit_cost_touch?: number
+  saving?: number
+  saving_se?: number | null
+  saving_touch?: number
+  saving_per_day_pct?: number
 }
 
 export interface QuantPaper {
@@ -207,7 +231,7 @@ export interface Job<R = unknown> {
   result?: R
 }
 
-export type JobKind = "quant_period" | "quant_forward" | "quant_book" | "notice_replay" | "quant_retrain" | "quant_evidence"
+export type JobKind = "quant_period" | "quant_forward" | "quant_book" | "notice_replay" | "quant_retrain" | "quant_evidence" | "quant_day"
 
 export interface DayCount {
   day: string
@@ -224,6 +248,7 @@ export interface NoticeItem {
   seen_at: string
   latency_s: number
   events: NoticeEvent[]
+  decisions?: { at: string; event: string; token: string; outcome: "entered" | "scheduled" | "no_rule" | "too_old" | "too_slow" | "no_perp" | "blocked"; detail: string }[]
 }
 
 export interface Trade {
@@ -259,4 +284,133 @@ export interface QuantConfig {
   models: Record<string, unknown>
   decision: string
   costs: { per_side: number; note: string }
+}
+
+export interface PairTrade {
+  side: "LONG" | "SHORT"
+  entry_time: number
+  exit_time: number
+  entry: number
+  exit: number
+  reason: string
+  stop?: number | null
+  take?: number | null
+  return_on_margin_pct: number
+  pnl: number
+  why: Record<string, number>
+}
+
+export type TacticFamily = "trend" | "revert" | "pattern" | "ml"
+
+export type PairRole = "best" | "second" | "third" | "reference" | "worst"
+
+export interface PairTactic {
+  key: string
+  label: string
+  rule: string
+  family: TacticFamily
+  overlay: string
+  pnl: number
+  return_pct: number
+  worst_pct: number
+  in_market_hours: number
+  pair_90d_sharpe: number | null
+  record: { dev?: number | null; holdout?: number | null; untouched?: number | null }
+}
+
+export interface PairDay {
+  symbol: string
+  from: string
+  to: string
+  days: number
+  source: string
+  bars_in_window: number
+  warmup_bars: number
+  capital: number
+  leverage: number
+  leverage_rule: string
+  price_move_pct: number
+  atr_pct?: number
+  bot?: { source: "paper" | "history"; return_pct: number; pnl?: number } | null
+  summary: { tactics: number; positive: number; negative: number; flat: number; median_pnl: number; total_pnl?: number; tied_best?: number; robust: number; best: string; worst: string }
+  families: Record<TacticFamily, { tactics: number; positive: number; pnl_sum: number }>
+  reference: string
+  book: { day: string; weight: number }[]
+  book_known?: boolean
+  candles: { time: number; open: number; high: number; low: number; close: number }[]
+  tactics: PairTactic[]
+  detail: { key: string; role?: PairRole; title?: string; label: string; about?: string; pnl?: number; trades: PairTrade[] }[]
+}
+
+export interface Upload {
+  upload: string
+  bars: number
+  from: string
+  to: string
+}
+
+export interface ProcessRow {
+  key: string
+  kind: "server" | "bot" | "job" | "cli"
+  pid: number | null
+  running: boolean
+  started_at: string | null
+  log: string | null
+  cpu: number | null
+  memory_mb: number | null
+  port?: number | null
+  mode?: Mode
+  last_stop?: string | null
+  last_log_at?: string | null
+  managed?: boolean
+  status?: JobStatus
+  title?: string
+  progress?: string | null
+  command?: string
+}
+
+export interface DiskInfo {
+  total: number
+  used: number
+  free: number
+  folders: { key: string; bytes: number }[]
+  stale: { files: number; bytes: number; keep_days: number }
+}
+
+export interface ScheduleItem {
+  key: "rebalance" | "limit_test" | "retrain"
+  next: string
+  last: string | null
+  last_pnl?: number | null
+}
+
+export interface ErrorSummary {
+  source: "serve" | "quant" | "notice"
+  count: number
+  last_at: string | null
+  recent: { at: string; line: string; detail: string }[]
+}
+
+export interface Autostart {
+  enabled: boolean
+  loaded: boolean
+  supervised: boolean
+  path: string
+}
+
+export type WhyGroup = "trend" | "momentum" | "overbought" | "volatility" | "volume" | "funding" | "btc" | "patterns" | "regime" | "time" | "other"
+
+export interface Why {
+  symbol: string
+  day: string
+  source: "reproduced" | "recorded"
+  rebalanced_at: string
+  decided_at: string
+  of: number
+  rank: number | null
+  weight: number
+  edge_pct: number | null
+  xs_pct: number | null
+  history: { day: string; rank: number; of: number; weight: number }[]
+  factors: { group: WhyGroup; value: number; top: { feature: string; value: number }[] }[]
 }

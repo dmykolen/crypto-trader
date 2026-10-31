@@ -1,0 +1,28 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "trader-test",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": [
+        "run",
+        "trader",
+        "serve",
+        "--port",
+        "8711"
+      ],
+      "port": 8711
+    },
+    {
+      "name": "web-next",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--dir",
+        "web",
+        "run",
+        "dev:next"
+      ],
+      "port": 5173
+    }
+  ]
+}

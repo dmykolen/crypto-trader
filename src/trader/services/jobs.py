@@ -70,6 +70,14 @@ class QuantEvidence(BaseModel):
     pass
 
 
+class QuantDay(BaseModel):
+    symbol: str = Field(pattern=r"^[A-Z0-9]{2,24}$")
+    day: date | None = None
+    days: int = Field(default=1, ge=1, le=30)
+    leverage: float | None = Field(default=None, gt=0, le=20)
+    upload: str | None = Field(default=None, pattern=r"^[0-9a-f]{16}$")
+
+
 KINDS: dict[str, type[BaseModel]] = {
     "quant_period": QuantPeriod,
     "quant_forward": QuantForward,
@@ -77,6 +85,7 @@ KINDS: dict[str, type[BaseModel]] = {
     "notice_replay": NoticeReplay,
     "quant_retrain": QuantRetrain,
     "quant_evidence": QuantEvidence,
+    "quant_day": QuantDay,
 }
 TITLES = {
     "quant_period": "Квант: період на історії",
@@ -85,11 +94,16 @@ TITLES = {
     "notice_replay": "Анонси: реплей днів",
     "quant_retrain": "Квант: перенавчання моделей",
     "quant_evidence": "Квант: перебудова доказів 2021–2026",
+    "quant_day": "Пара за день: 305 тактик",
 }
 
 
 class JobError(RuntimeError):
     pass
+
+
+def uploads_dir() -> Path:
+    return settings.data_dir / "uploads"
 
 
 def jobs_dir() -> Path:
@@ -289,14 +303,21 @@ def _sources(start: date, end: date) -> list[tuple[Path, int, int]]:
     return out
 
 
-def run_quant_period(p: QuantPeriod, report) -> dict:
+def _extreme(panel, book: pd.DataFrame, lo: int, hi: int) -> list[dict]:
+    r = panel.r[(panel.r.index >= lo) & (panel.r.index < hi)]
+    held = book.shift(1).reindex(index=r.index, columns=r.columns).fillna(0.0)
+    hits = r.where((r >= 3.0) | (r <= -0.95)).stack()
+    return [{"day": _iso(t), "symbol": s, "move_pct": round(100 * float(v), 1), "weight": round(float(held.at[t, s]), 5)} for (t, s), v in hits.items()]
+
+
+def run_quant_period(p: QuantPeriod, report, books: list | None = None) -> dict:
     from trader.quant import model, neutral, trend
 
     config = {**neutral.ENSEMBLE, "gross": p.gross, "per_side": p.per_side, "short_cap": p.short_cap, "band": p.band, "beta_days": p.beta_days, "family": p.family}
     sources = _sources(p.start, p.end)
     if not sources:
         raise JobError(f"no walk-forward predictions cover {p.start}…{p.end}; history spans {PRE_RANGE[0]}…{MAIN_RANGE[1]}")
-    parts, last_book, original = [], None, settings.data_dir
+    parts, last_book, extreme, original = [], None, [], settings.data_dir
     try:
         for directory, lo, hi in sources:
             settings.data_dir = directory
@@ -304,18 +325,21 @@ def run_quant_period(p: QuantPeriod, report) -> dict:
             panel = trend.load_panel()
             scores = neutral.all_scores(panel, pd.read_parquet(model.root() / "predictions.parquet"))
             report("рахую книгу …")
-            w = neutral.production_weights(panel, scores, config)
-            ret = neutral.weights_returns(panel, w)
+            ret, book = neutral.drift(panel, neutral.production_weights(panel, scores, config), band=config["band"])
             parts.append(ret[(ret.index >= lo) & (ret.index < hi)])
-            held = w.loc[(w.index >= lo - DAY) & (w.index < hi - DAY)]
+            held = book.loc[(book.index >= lo - DAY) & (book.index < hi - DAY)]
             if len(held):
                 last_book = _book(held.iloc[-1])
+            extreme.extend(_extreme(panel, book, lo, hi))
+            if books is not None:
+                books.append(neutral.held_long(book, lo, hi))
     finally:
         settings.data_dir = original
     ret = pd.concat(parts).sort_index()
     out = series(ret, p.capital)
     out["sources"] = [{"data": d.name, "from": _iso(lo), "to": _iso(hi - DAY)} for d, lo, hi in sources]
     out["book_last_day"] = last_book
+    out["extreme_moves"] = extreme
     out["config"] = config
     return out
 
@@ -363,6 +387,14 @@ def run_quant_evidence(p: QuantEvidence, report) -> dict:
     return {"stats": doc["stats"], "periods": doc["periods"], "built_at": doc["built_at"]}
 
 
+def run_quant_day(p: QuantDay, report) -> dict:
+    from trader.quant import day
+
+    report("качаю котирування пари й BTC, рахую 305 тактик …")
+    start = datetime(p.day.year, p.day.month, p.day.day, tzinfo=UTC) if p.day else None
+    return day.run(p.symbol, start, p.days, uploads_dir() / f"{p.upload}.csv" if p.upload else None, p.leverage)
+
+
 RUNNERS = {
     "quant_period": run_quant_period,
     "quant_forward": run_quant_forward,
@@ -370,4 +402,5 @@ RUNNERS = {
     "notice_replay": run_notice_replay,
     "quant_retrain": run_quant_retrain,
     "quant_evidence": run_quant_evidence,
+    "quant_day": run_quant_day,
 }

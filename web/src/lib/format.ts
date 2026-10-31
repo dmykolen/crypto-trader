@@ -28,7 +28,7 @@ export const fmt = {
   pnl: (v: number | null | undefined) => (v == null ? "—" : signed(`$${usd.format(Math.abs(v))}`, v)),
   pct: (v: number | null | undefined, digits = 2) => (v == null ? "—" : signed(`${Math.abs(v).toFixed(digits).replace(".", ",")} %`, v, digits)),
   pctPlain: (v: number | null | undefined, digits = 1) => (v == null ? "—" : `${v.toFixed(digits).replace(".", ",").replace("-", MINUS)} %`),
-  ratio: (v: number | null | undefined, digits = 2) => (v == null ? "—" : num.format(Number(v.toFixed(digits)))),
+  ratio: (v: number | null | undefined, digits = 2) => (v == null ? "—" : num.format(Number(v.toFixed(digits))).replace("-", MINUS)),
   times: (v: number | null | undefined, digits = 2) => (v == null ? "—" : `${num.format(Number(v.toFixed(digits)))}×`),
   weight: (v: number) => signed(`${Math.abs(100 * v).toFixed(2).replace(".", ",")} %`, 100 * v),
   price: (v: number | null | undefined, reference?: number) => {
@@ -37,6 +37,8 @@ export const fmt = {
     return (priceTiers.find((t) => size >= t.from) ?? priceTiers[priceTiers.length - 1]!).nf.format(v)
   },
   int: (v: number | null | undefined) => (v == null ? "—" : usd0.format(v)),
+  bytes: (v: number | null | undefined) =>
+    v == null ? "—" : v >= 2 ** 30 ? `${(v / 2 ** 30).toFixed(1).replace(".", ",")} ГБ` : v >= 2 ** 20 ? `${usd0.format(v / 2 ** 20)} МБ` : `${usd0.format(Math.max(1, v / 2 ** 10))} КБ`,
 }
 
 export function plural(n: number, one: string, few: string, many: string): string {
@@ -147,7 +149,7 @@ export const JOB_STATUS: Record<JobStatus, string> = { queued: "у черзі", 
 
 const JOB_TAPE: Record<JobStatus, string> = { queued: "тест у черзі", running: "тест рахується", done: "тест завершено", failed: "тест завершився помилкою", cancelled: "тест скасовано" }
 
-const EXIT_REASONS: Record<string, string> = { stop: "стоп", take_profit: "тейк-профіт", time: "вихід за часом", liquidation: "ліквідація", closed: "закрито" }
+const EXIT_REASONS: Record<string, string> = { stop: "стоп", take_profit: "тейк-профіт", time: "вихід за часом", liquidation: "ліквідація", closed: "закрито", signal: "сигнал зник", reversal: "сигнал розвернувся", end: "кінець тесту" }
 
 export const exitReason = (reason: string | null | undefined) => (reason ? (EXIT_REASONS[reason] ?? reason.replaceAll("_", " ")) : "")
 
@@ -175,9 +177,9 @@ export function describeEvent(e: ActivityEvent): EventLine {
         alert: false,
       }
     case "trade_open":
-      return { title: `${ticker(e.symbol)}: відкрито ${sideLabel(e.side)}`, detail: `${triggerParts(e.trigger).event} · ${e.mode === "live" ? "реальні гроші" : "папір"}`, amount: null, quiet: false, alert: false }
+      return { title: `${ticker(e.symbol)}: відкрито ${sideLabel(e.side)}`, detail: `${triggerParts(e.trigger).event} · ${e.mode === "live" ? "реальні гроші" : "віртуальні"}`, amount: null, quiet: false, alert: false }
     case "trade_close":
-      return { title: `${ticker(e.symbol)}: закрито ${sideLabel(e.side)}`, detail: [exitReason(e.exit_reason), e.mode === "live" ? "реальні гроші" : "папір"].filter(Boolean).join(" · "), amount: e.pnl, quiet: false, alert: false }
+      return { title: `${ticker(e.symbol)}: закрито ${sideLabel(e.side)}`, detail: [exitReason(e.exit_reason), e.mode === "live" ? "реальні гроші" : "віртуальні"].filter(Boolean).join(" · "), amount: e.pnl, quiet: false, alert: false }
     case "rebalance":
       return { title: `${e.opening ? "Книгу відкрито" : "Ребаланс"}: ${plural(e.longs, "лонг", "лонги", "лонгів")}, ${plural(e.shorts, "шорт", "шорти", "шортів")}`, detail: `витрати ${fmt.usd(e.cost)} · капітал ${fmt.usd(e.equity)}`, amount: e.pnl, quiet: false, alert: false }
     case "job":

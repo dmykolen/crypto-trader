@@ -1,4 +1,4 @@
-import type { BotKey, BotState, DayCount, Evidence, Job, JobKind, Klines, Mode, NoticeItem, Overview, QuantConfig, QuantLedger, SystemInfo, Trade } from "./types"
+import type { Autostart, BotKey, BotState, DayCount, DiskInfo, ErrorSummary, Evidence, Job, JobKind, Klines, LimitTest, Mode, NoticeItem, Overview, ProcessRow, QuantConfig, QuantLedger, ScheduleItem, SystemInfo, Trade, Upload, Why } from "./types"
 
 export class ApiError extends Error {
   constructor(
@@ -37,14 +37,28 @@ export const api = {
   logs: (bot: BotKey, lines = 300) => request<{ bot: BotKey; lines: string[] }>(`/bots/${bot}/logs?lines=${lines}`),
   quantLedger: () => request<QuantLedger | { started: false }>("/quant/ledger"),
   quantConfig: () => request<QuantConfig>("/quant/config"),
+  quantLimitTest: () => request<LimitTest>("/quant/limit-test"),
   evidence: () => request<Evidence>("/quant/evidence"),
   noticeFeed: (limit = 100, eventsOnly = false) => request<NoticeItem[]>(`/notice/feed?limit=${limit}&events_only=${eventsOnly}`),
   noticeDaily: (days = 14) => request<DayCount[]>(`/notice/daily?days=${days}`),
   trades: (limit = 200) => request<Trade[]>(`/notice/trades?limit=${limit}`),
   playbooks: () => request<Record<string, unknown>>("/playbooks"),
-  klines: (symbol: string, interval = "1h", hours = 72) => request<Klines>(`/market/klines?symbol=${encodeURIComponent(symbol)}&interval=${interval}&hours=${hours}`),
+  klines: (symbol: string, interval = "1h", hours = 72, end?: string) => request<Klines>(`/market/klines?symbol=${encodeURIComponent(symbol)}&interval=${interval}&hours=${hours}${end ? `&end=${encodeURIComponent(end)}` : ""}`),
   jobs: () => request<Job[]>("/jobs"),
   job: <R>(id: string) => request<Job<R>>(`/jobs/${id}`),
   createJob: (kind: JobKind, params: Record<string, unknown>) => request<Job>("/jobs", { method: "POST", body: JSON.stringify({ kind, params }) }),
   cancelJob: (id: string) => request<Job>(`/jobs/${id}`, { method: "DELETE" }),
+  upload: (file: File) => request<Upload>("/uploads", { method: "POST", body: file, headers: { "Content-Type": "text/csv" } }),
+  processes: () => request<{ now: string; processes: ProcessRow[] }>("/processes"),
+  stopProcess: (key: string) => request<Record<string, unknown>>(`/processes/${encodeURIComponent(key)}/stop`, { method: "POST" }),
+  restartBot: (bot: BotKey) => request<BotState>(`/bots/${bot}/restart`, { method: "POST" }),
+  restartServer: () => request<{ restarting: boolean; supervised: boolean }>("/server/restart", { method: "POST" }),
+  autostart: () => request<Autostart>("/autostart"),
+  setAutostart: (enabled: boolean) => request<Autostart>("/autostart", { method: "POST", body: JSON.stringify({ enabled }) }),
+  disk: () => request<DiskInfo>("/disk"),
+  cleanDisk: () => request<{ files: number; freed: number }>("/disk/clean", { method: "POST" }),
+  schedule: () => request<{ items: ScheduleItem[]; errors: ErrorSummary[] }>("/schedule"),
+  quantWhy: (symbol: string, day?: string) => request<Why>(`/quant/why?symbol=${encodeURIComponent(symbol)}${day ? `&day=${day}` : ""}`),
+  quantRanks: (day?: string) => request<{ day: string; ranks: Record<string, { rank: number; of: number }> }>(`/quant/ranks${day ? `?day=${day}` : ""}`),
+  logTail: (source: string, lines = 300) => request<{ source: string; lines: string[] }>(`/logs/${encodeURIComponent(source)}?lines=${lines}`),
 }

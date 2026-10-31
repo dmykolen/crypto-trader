@@ -3,7 +3,7 @@
 `plan` is pure — it turns target weights, the held positions, prices and equity into an ordered list of market orders
 (reduce-only first so margin frees up before anything grows). `LiveBook` reads the account, plans and executes on
 cross margin: isolated margin at ordinary leverage would liquidate every short on a ~20 % squeeze, which is exactly
-the stop that the research showed destroys this book (RESEARCH.md Q22). A drawdown kill switch on the whole account
+the stop that the research showed destroys this book (docs/RESEARCH.md Q22). A drawdown kill switch on the whole account
 closes everything and halts the bot instead.
 """
 

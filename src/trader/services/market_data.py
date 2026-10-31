@@ -22,6 +22,7 @@ from trader.integrations import binance
 KLINE_FIELDS = ["open_time", "open", "high", "low", "close", "volume", "quote_volume", "count", "taker_buy_volume"]
 _INT_FIELDS = {"open_time", "count"}
 ARCHIVE_LAG = timedelta(days=2)
+RECENT = timedelta(days=7)
 _rest = binance.FuturesREST()
 
 
@@ -97,9 +98,8 @@ def load_klines(symbol: str, start: datetime, end: datetime, interval: str = "1m
                 rest_from = rest_from or day
                 continue
             path = root / f"{day:%Y-%m-%d}.parquet"
-            df = _cached(path, lambda d=day: binance.archive_klines(symbol, interval, f"{d:%Y-%m-%d}"), _normalize, cache_missing=True)
-            if df is not None:
-                frames.append(df)
+            df = _cached(path, lambda d=day: binance.archive_klines(symbol, interval, f"{d:%Y-%m-%d}"), _normalize, cache_missing=day < fresh - RECENT)
+            frames.append(df if df is not None else _normalize(_rest.klines(symbol, interval, to_ms(day), to_ms(day + timedelta(days=1)))))
     if rest_from is not None:
         frames.append(_normalize(_rest.klines(symbol, interval, max(start_ms, to_ms(rest_from)), end_ms)))
     df = _normalize(pd.concat(frames, ignore_index=True) if frames else None)

@@ -1,8 +1,8 @@
-import { AreaSeries, BaselineSeries, CandlestickSeries, ColorType, createChart, CrosshairMode, HistogramSeries, LineSeries, TickMarkType, type IChartApi, type Time } from "lightweight-charts"
+import { AreaSeries, BaselineSeries, CandlestickSeries, ColorType, createChart, createSeriesMarkers, CrosshairMode, HistogramSeries, LineSeries, TickMarkType, type IChartApi, type Time } from "lightweight-charts"
 import { useEffect, useRef } from "react"
 
 import { fmt } from "../lib/format"
-import { cssVar, useEdition } from "../lib/theme"
+import { alpha, cssVar, useEdition, useSkin } from "../lib/theme"
 
 export interface LinePoint {
   time: string | number
@@ -26,6 +26,9 @@ export interface SeriesSpec {
   baseline?: { value: number; title: string }
   minRange?: number
   markers?: { time: number; position: "aboveBar" | "belowBar"; color: string; shape: "arrowUp" | "arrowDown" | "circle"; text: string }[]
+  muteBefore?: number
+  priceLines?: { price: number; title: string; color?: string }[]
+  quiet?: boolean
 }
 
 interface TimeChartProps {
@@ -93,29 +96,33 @@ export function TimeChart({ series, height = 280, label, logScale = false }: Tim
   const host = useRef<HTMLDivElement>(null)
   const chart = useRef<IChartApi | null>(null)
   const edition = useEdition()
+  const skin = useSkin()
 
   useEffect(() => {
     if (!host.current) return
-    const ink = cssVar("--ink")
-    const rule = cssVar("--rule")
+    const ink = cssVar("--raised")
+    const rule = cssVar("--line")
     const c = createChart(host.current, {
       height,
       autoSize: true,
-      layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: cssVar("--ink-2"), fontFamily: "Fira Sans, sans-serif", fontSize: 11, attributionLogo: false },
-      grid: { vertLines: { visible: false }, horzLines: { color: rule, style: 2 } },
-      rightPriceScale: { borderColor: ink, mode: logScale ? 1 : 0, minimumWidth: 84 },
-      timeScale: { borderColor: ink, timeVisible: series.some((s) => s.kind === "candles"), secondsVisible: false, tickMarkFormatter: tickMark },
-      crosshair: { mode: CrosshairMode.Magnet, vertLine: { color: cssVar("--ink-3"), labelBackgroundColor: ink }, horzLine: { color: cssVar("--ink-3"), labelBackgroundColor: ink } },
+      layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: cssVar("--text-3"), fontFamily: "Geologica Variable, sans-serif", fontSize: 11, attributionLogo: false },
+      grid: { vertLines: { visible: false }, horzLines: { color: alpha(rule, 0.7), style: 1 } },
+      rightPriceScale: { borderColor: rule, mode: logScale ? 1 : 0, minimumWidth: 72 },
+      timeScale: { borderColor: rule, timeVisible: series.some((s) => s.kind === "candles"), secondsVisible: false, tickMarkFormatter: tickMark },
+      crosshair: { mode: CrosshairMode.Magnet, vertLine: { color: cssVar("--line-strong"), labelBackgroundColor: ink }, horzLine: { color: cssVar("--line-strong"), labelBackgroundColor: ink } },
       localization: { locale: "uk-UA" },
     })
     chart.current = c
     for (const s of series) {
-      const color = resolve(s.color, "--ink")
+      const color = resolve(s.color, "--text")
       if (s.kind === "candles") {
         const gain = cssVar("--gain")
         const loss = cssVar("--loss")
         const cs = c.addSeries(CandlestickSeries, { upColor: gain, downColor: loss, borderUpColor: gain, borderDownColor: loss, wickUpColor: gain, wickDownColor: loss })
-        cs.setData((s.data as CandlePoint[]).map((d) => ({ ...d, time: d.time as Time })))
+        const mute = cssVar("--text-3")
+        cs.setData((s.data as CandlePoint[]).map((d) => ({ ...d, time: d.time as Time, ...(s.muteBefore !== undefined && d.time < s.muteBefore ? { color: mute, wickColor: mute, borderColor: mute } : {}) })))
+        if (s.markers?.length) createSeriesMarkers(cs, [...s.markers].sort((a, b) => a.time - b.time).map((m) => ({ ...m, time: m.time as Time, color: resolve(m.color, "--text") })))
+        for (const line of s.priceLines ?? []) cs.createPriceLine({ price: line.price, color: resolve(line.color, "--text-3"), lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: line.title })
       } else if (s.kind === "histogram") {
         const hs = c.addSeries(HistogramSeries, { color, priceFormat: formatter(s.priceFormat), title: s.title })
         hs.setData((s.data as LinePoint[]).map((d) => ({ time: d.time as Time, value: d.value, color: d.value >= 0 ? cssVar("--gain") : cssVar("--loss") })))
@@ -126,8 +133,8 @@ export function TimeChart({ series, height = 280, label, logScale = false }: Tim
           topFillColor1: "transparent",
           topFillColor2: "transparent",
           bottomLineColor: color,
-          bottomFillColor1: `${color}26`,
-          bottomFillColor2: `${color}40`,
+          bottomFillColor1: alpha(color, 0.15),
+          bottomFillColor2: alpha(color, 0.25),
           lineWidth: 1,
           priceFormat: formatter(s.priceFormat),
           title: s.title,
@@ -136,23 +143,39 @@ export function TimeChart({ series, height = 280, label, logScale = false }: Tim
         })
         us.setData((s.data as LinePoint[]).map((d) => ({ time: d.time as Time, value: d.value })))
       } else if (s.kind === "area") {
-        const as = c.addSeries(AreaSeries, { lineColor: color, topColor: `${color}33`, bottomColor: `${color}00`, lineWidth: 2, priceFormat: formatter(s.priceFormat), title: s.title, ...scale(s) })
+        const as = c.addSeries(AreaSeries, { lineColor: color, topColor: alpha(color, 0.3), bottomColor: alpha(color, 0.02), lineWidth: 2, priceFormat: formatter(s.priceFormat), title: s.title, ...scale(s) })
         as.setData((s.data as LinePoint[]).map((d) => ({ time: d.time as Time, value: d.value })))
+        if (s.baseline) as.createPriceLine({ price: s.baseline.value, color: cssVar("--text-3"), lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: s.baseline.title })
       } else {
-        const ls = c.addSeries(LineSeries, { color, lineWidth: 2, priceFormat: formatter(s.priceFormat), title: s.title, lastValueVisible: true, priceLineVisible: false, pointMarkersVisible: s.data.length <= 40, ...scale(s) })
+        const ls = c.addSeries(LineSeries, {
+          color,
+          lineWidth: s.quiet ? 1 : 2,
+          lineStyle: s.quiet ? 2 : 0,
+          priceFormat: formatter(s.priceFormat),
+          title: s.title,
+          lastValueVisible: !s.quiet,
+          priceLineVisible: false,
+          crosshairMarkerVisible: !s.quiet,
+          pointMarkersVisible: !s.quiet && s.data.length <= 40,
+          ...scale(s),
+        })
         ls.setData((s.data as LinePoint[]).map((d) => ({ time: d.time as Time, value: d.value })))
-        if (s.baseline) ls.createPriceLine({ price: s.baseline.value, color: cssVar("--ink-3"), lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: s.baseline.title })
+        if (s.baseline) ls.createPriceLine({ price: s.baseline.value, color: cssVar("--text-3"), lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: s.baseline.title })
       }
     }
     const fit = () => c.timeScale().fitContent()
     fit()
     c.timeScale().subscribeSizeChange(fit)
+    const el = host.current
+    const scrollPage = (e: WheelEvent) => !e.ctrlKey && !e.metaKey && Math.abs(e.deltaY) > Math.abs(e.deltaX) && e.stopPropagation()
+    el.addEventListener("wheel", scrollPage, { capture: true })
     return () => {
+      el.removeEventListener("wheel", scrollPage, { capture: true })
       c.timeScale().unsubscribeSizeChange(fit)
       c.remove()
       chart.current = null
     }
-  }, [series, height, edition, logScale])
+  }, [series, height, edition, skin, logScale])
 
   return <div ref={host} role="img" aria-label={label} style={{ height }} className="w-full" />
 }

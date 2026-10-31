@@ -16,6 +16,7 @@ of equity, leverage ≤ MAX_LEVERAGE, no new positions once the UTC day's realiz
 """
 
 import asyncio
+import json
 import logging
 import re
 import time
@@ -75,6 +76,17 @@ def update_trail(t: Trade, price: float) -> None:
             t.stop_price = trail_stop
         else:
             t.stop_price = max(t.stop_price, trail_stop) if t.side > 0 else min(t.stop_price, trail_stop)
+
+
+def decisions_path():
+    return settings.data_dir / "run" / "notice_decisions.jsonl"
+
+
+def record(news_id: str | None, kind: str, token: str, outcome: str, detail: str = "") -> None:
+    path = decisions_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a") as f:
+        f.write(json.dumps({"at": now().isoformat(timespec="seconds"), "news_id": news_id, "event": kind, "token": token, "outcome": outcome, "detail": detail}) + "\n")
 
 
 class Trader:
@@ -160,9 +172,11 @@ class Trader:
             pb = fast.for_latency(self.fast.get(event.type, []), latency)
             log.info("fast %s %s seen %.2fs after publication: %s", event.type.value, event.token, latency, notice.title)
             if pb is None or latency > settings.fast_max_latency_s:
+                record(news_id, event.type.value, event.token, "no_rule" if pb is None else "too_slow", f"{latency:.2f}")
                 continue
             symbol = market_data.perp_symbol(event.token, await self.tradable())
             if symbol is None:
+                record(news_id, event.type.value, event.token, "no_perp")
                 continue
             trade = await self.open_position(
                 symbol,
@@ -223,12 +237,15 @@ class Trader:
         age = (now() - event.notice.published_at).total_seconds()
         log.info("event %s %s, %.0fs old: %s", event.type.value, event.token, age, event.notice.title)
         if playbook is None or age > settings.max_notice_age_s:
+            record(news_id, event.type.value, event.token, "no_rule" if playbook is None else "too_old", f"{age:.0f}")
             return None
         symbol = market_data.perp_symbol(event.token, await self.tradable())
         if symbol is None:
             log.info("no tradable perpetual for %s", event.token)
+            record(news_id, event.type.value, event.token, "no_perp")
             return None
         enter_at = event.notice.published_at + timedelta(seconds=settings.entry_latency_s, minutes=playbook.delay_min)
+        record(news_id, event.type.value, event.token, "scheduled", enter_at.isoformat(timespec="seconds"))
         return self._schedule_entry(enter_at, symbol, playbook, f"{event.type.value}: {playbook.describe()}", news_id)
 
     def _schedule_entry(self, at: datetime, symbol: str, pb: playbooks.Playbook, trigger: str, news_id: str | None) -> asyncio.Task | None:
@@ -337,6 +354,7 @@ class Trader:
                 blocked = self._blocked(session, active, symbol, equity) or ("announcement exposure cap reached" if margin < 10 else None)
                 if blocked:
                     log.warning("not opening %s (%s): %s", symbol, trigger, blocked)
+                    record(news_id, trigger.removeprefix("fast ").split(":")[0], symbol, "blocked", blocked)
                     return None
                 leverage = min(float(leverage), float(settings.max_leverage))
                 fill = await self.broker.open(symbol, side, margin * leverage / await self.broker.price(symbol), leverage)
@@ -368,6 +386,7 @@ class Trader:
                 log.warning(
                     "OPEN %s %s %s qty=%.6g @ %.6g %gx margin=%.2f — %s", self.mode, "LONG" if side > 0 else "SHORT", symbol, fill.qty, fill.price, leverage, margin, trigger
                 )
+                record(news_id, trigger.removeprefix("fast ").split(":")[0], symbol, "entered", f"trade {trade.id}")
                 return trade
 
     async def monitor(self) -> None:

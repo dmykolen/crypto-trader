@@ -5,6 +5,7 @@ from itertools import product
 
 import numpy as np
 import pandas as pd
+from numba import njit
 
 from trader.core.config import settings
 from trader.quant import model, trend
@@ -88,21 +89,64 @@ def book_weights(p: Panel, score: pd.DataFrame, book: Book) -> pd.DataFrame:
     return w.rolling(book.hold_days, min_periods=1).mean() if book.hold_days > 1 else w
 
 
-def weights_returns(p: Panel, w: pd.DataFrame, stop: float | None = None) -> pd.Series:
-    r_next = p.r.shift(-1).fillna(0.0)
-    stopped = pd.DataFrame(False, index=w.index, columns=w.columns)
-    if stop:
-        base = p.c
-        gap = (p.o.shift(-1) / base - 1).fillna(0.0)
-        up = (p.h.shift(-1) / base - 1).fillna(0.0)
-        down = (p.low.shift(-1) / base - 1).fillna(0.0)
-        long_hit, short_hit = (w > 0) & (down <= -stop), (w < 0) & (up >= stop)
-        r_next = r_next.mask(long_hit, np.minimum(gap, -stop)).mask(short_hit, np.maximum(gap, stop))
-        stopped = long_hit | short_hit
-    pnl = (w * r_next).sum(axis=1)
-    turnover = (w - w.shift(1).fillna(0.0)).abs().sum(axis=1) + 2 * w.abs().where(stopped, 0.0).sum(axis=1)
-    funding = (w * p.funding.shift(-1).fillna(0.0)).sum(axis=1)
-    return (pnl - COST * turnover - funding).shift(1).fillna(0.0)
+@njit(cache=True)
+def _drift(
+    target: np.ndarray, r: np.ndarray, gap: np.ndarray, up: np.ndarray, down: np.ndarray, funding: np.ndarray, cost: float, band: float, stop: float
+) -> tuple[np.ndarray, np.ndarray]:
+    t_len, n = target.shape
+    out = np.zeros(t_len)
+    book = np.zeros((t_len, n))
+    held = np.zeros(n)
+    for t in range(t_len):
+        new = np.zeros(n)
+        turnover = 0.0
+        for j in range(n):
+            x = target[t, j]
+            if x == x and x != 0.0:
+                new[j] = held[j] if held[j] != 0.0 and abs(x - held[j]) <= band else x
+            turnover += abs(new[j] - held[j])
+        pnl = -cost * turnover
+        moved = np.zeros(n)
+        closed = np.zeros(n, dtype=np.bool_)
+        for j in range(n):
+            if new[j] == 0.0:
+                continue
+            rj = r[t, j] if r[t, j] == r[t, j] else 0.0
+            if stop > 0.0 and new[j] > 0.0 and down[t, j] <= -stop:
+                rj, closed[j] = min(gap[t, j], -stop), True
+            elif stop > 0.0 and new[j] < 0.0 and up[t, j] >= stop:
+                rj, closed[j] = max(gap[t, j], stop), True
+            moved[j] = rj
+            pnl += new[j] * rj - (new[j] * funding[t, j] if funding[t, j] == funding[t, j] else 0.0)
+            if closed[j]:
+                pnl -= cost * abs(new[j]) * (1.0 + rj)
+        book[t] = new
+        if 1.0 + pnl <= 0.0:
+            out[t:] = -1.0
+            out[t + 1 :] = 0.0
+            break
+        out[t] = pnl
+        for j in range(n):
+            held[j] = 0.0 if closed[j] else new[j] * (1.0 + moved[j]) / (1.0 + pnl)
+    return out, book
+
+
+def drift(p: Panel, w: pd.DataFrame, stop: float | None = None, band: float = 0.0) -> tuple[pd.Series, pd.DataFrame]:
+    r, o, h, low, funding = (f.reindex(index=w.index, columns=w.columns).shift(-1).to_numpy(np.float64) for f in (p.r, p.o, p.h, p.low, p.funding))
+    base = p.c.reindex(index=w.index, columns=w.columns).to_numpy(np.float64)
+    out, book = _drift(w.fillna(0.0).to_numpy(np.float64), r, o / base - 1, h / base - 1, low / base - 1, funding, COST, band, stop or 0.0)
+    return pd.Series(out, index=w.index).shift(1).fillna(0.0), pd.DataFrame(book, index=w.index, columns=w.columns)
+
+
+def held_long(book: pd.DataFrame, lo: int, hi: int) -> pd.DataFrame:
+    held = book[(book.index >= lo - DAY) & (book.index < hi - DAY)]
+    held = held.where(held.abs() > 1e-9).stack().rename("weight").reset_index()
+    held.columns = ["day", "symbol", "weight"]
+    return held.assign(day=held.day + DAY)
+
+
+def weights_returns(p: Panel, w: pd.DataFrame, stop: float | None = None, band: float = 0.0) -> pd.Series:
+    return drift(p, w, stop, band)[0]
 
 
 def book_returns(p: Panel, score: pd.DataFrame, book: Book) -> pd.Series:
@@ -119,12 +163,19 @@ ENSEMBLE = {
     "short_cap": 0.04,
     "beta_days": 60,
     "band": 0.01,
+    "pump_guard": (7, 0.5),
 }
+
+
+def pump_guard(p: Panel, score: pd.DataFrame, days: int, rise: float) -> pd.DataFrame:
+    move = (p.c / p.c.shift(days) - 1).reindex(index=score.index, columns=score.columns)
+    return score.where(~((move > rise) & (score.rank(axis=1, pct=True) < 0.5)))
 
 
 def ensemble_weights(p: Panel, scores: dict[str, pd.DataFrame], config: dict = ENSEMBLE) -> pd.DataFrame:
     books = [Book(k, h, config["gross"], config["family"], wt) for k, h, wt in product(config["k"], config["hold_days"], config["weighting"])]
-    w = sum(book_weights(p, scores[config["family"]], b) for b in books) / len(books)
+    score = pump_guard(p, scores[config["family"]], *config["pump_guard"]) if config.get("pump_guard") else scores[config["family"]]
+    w = sum(book_weights(p, score, b) for b in books) / len(books)
     return compress(w, config["per_side"]) if config.get("per_side") else w
 
 
@@ -147,19 +198,6 @@ def vol_target(p: Panel, w: pd.DataFrame, target: float, lookback: int = 30, lo:
     return w.mul(scale.reindex(w.index).fillna(1.0), axis=0)
 
 
-def banded(w: pd.DataFrame, band: float) -> pd.DataFrame:
-    """Trade a position only when its target drifts more than `band` from what is held; names that leave the book are closed."""
-    target = w.to_numpy()
-    out = np.zeros_like(target)
-    held = np.zeros(target.shape[1])
-    for i, row in enumerate(target):
-        row = np.nan_to_num(row)
-        held = np.where(np.abs(row - held) > band, row, held)
-        held = np.where(row == 0.0, 0.0, held)
-        out[i] = held
-    return pd.DataFrame(out, index=w.index, columns=w.columns)
-
-
 def compress(w: pd.DataFrame, per_side: int) -> pd.DataFrame:
     """Keep the `per_side` largest longs and shorts of a book, resized so each side keeps its gross."""
     longs = w.where(w > 0)
@@ -171,25 +209,23 @@ def compress(w: pd.DataFrame, per_side: int) -> pd.DataFrame:
     return keep_l.mul(scale_l, axis=0) + keep_s.mul(scale_s, axis=0)
 
 
-def production_weights(p: Panel, scores: dict[str, pd.DataFrame], config: dict = ENSEMBLE, band: bool = True) -> pd.DataFrame:
-    """The book the bot trades: ensemble → 30 per side → shorts capped → beta-hedged with BTC → traded only past the band."""
+def production_weights(p: Panel, scores: dict[str, pd.DataFrame], config: dict = ENSEMBLE) -> pd.DataFrame:
+    """The target book: ensemble → 30 per side → shorts capped → beta-hedged with BTC; `drift` trades it past the band."""
     w = ensemble_weights(p, scores, config)
     if config.get("short_cap"):
         w = w.clip(lower=-config["short_cap"])
     if config.get("beta_days") and "BTCUSDT" in p.r.columns:
         w = beta_hedge(p, w, config["beta_days"])
-    if band and config.get("band"):
-        w = banded(w, config["band"])
     return w
 
 
 def day_view(day_ms: int, capital: float = 1000.0, config: dict = ENSEMBLE) -> dict:
     p = trend.load_panel()
     scores = all_scores(p, pd.read_parquet(model.root() / "predictions.parquet"))
-    w = production_weights(p, scores, config)
-    if day_ms - DAY not in w.index or day_ms not in p.r.index:
+    ret, book = drift(p, production_weights(p, scores, config), band=config.get("band") or 0.0)
+    if day_ms - DAY not in book.index or day_ms not in p.r.index:
         raise ValueError("this day is outside the out-of-sample prediction range (2023-07-01 … 2026-09-30)")
-    held, before = w.loc[day_ms - DAY], w.loc[day_ms - 2 * DAY] if day_ms - 2 * DAY in w.index else w.loc[day_ms - DAY] * 0
+    held = book.loc[day_ms - DAY]
     r = p.r.loc[day_ms].fillna(0.0)
     funding = p.funding.loc[day_ms].fillna(0.0)
     open_pos = held[held.abs() > 1e-9].sort_values()
@@ -204,8 +240,8 @@ def day_view(day_ms: int, capital: float = 1000.0, config: dict = ENSEMBLE) -> d
         }
         for s, wgt in open_pos.items()
     ]
-    cost = capital * COST * float((held - before).abs().sum())
-    pnl = sum(x["pnl"] for x in rows) - cost
+    pnl = capital * float(ret.loc[day_ms])
+    cost = sum(x["pnl"] for x in rows) - pnl
     return {
         "day": datetime.fromtimestamp(day_ms / 1000, UTC).strftime("%Y-%m-%d"),
         "book": f"market-neutral ensemble of {len(config['k']) * len(config['hold_days']) * len(config['weighting'])} books ({config['family']} score, gross {config['gross']:g}x)",
